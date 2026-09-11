@@ -14,14 +14,17 @@ async function fixture(t) {
   const source = path.join(dir, 'source');
   fs.mkdirSync(path.join(source, 'dist'), { recursive: true });
   const preload = Buffer.from('"use strict";\n// Synthetic preload for transaction testing.\n');
+  const menu = Buffer.from('exports.setupApplicationMenu = function () {};\n');
   fs.writeFileSync(path.join(source, 'dist', 'preload.js'), preload);
+  fs.writeFileSync(path.join(source, 'dist', 'menu.js'), menu);
   fs.writeFileSync(path.join(source, 'package.json'), JSON.stringify({ name: 'antigravity', productName: 'Antigravity', version: '2.12.2', main: 'dist/main.js' }));
   const target = path.join(dir, 'app.asar');
   await official.createPackage(source, target);
   const hash = asar.sha256;
   // Only the synthetic preload is admitted by the fixture. Production allowlist stays immutable.
   t.mock.method(asar, 'sha256', data => Buffer.isBuffer(data) && data.equals(preload)
-    ? 'f42381a56cc73aee978a1ea966e8b597959af80c98aba32d296740616810cce9' : hash(data));
+    ? 'f42381a56cc73aee978a1ea966e8b597959af80c98aba32d296740616810cce9'
+    : Buffer.isBuffer(data) && data.equals(menu) ? '6df72cd3b74cb9f60cb50ef1defe1b403c8d2e2375b38228a012c5ac53feebc8' : hash(data));
   return { target, dir, before: fs.readFileSync(target) };
 }
 
@@ -114,9 +117,38 @@ test('real installed ASAR copy: official reader, complete metadata preservation,
   assert.ok(source.includes(patcher.MARKER));
   assert.ok(source.startsWith(asar.read(original, 'dist/preload.js').toString()));
   patched.header.files.dist.files['preload.js'] = original.header.files.dist.files['preload.js'];
+  patched.header.files.dist.files['menu.js'] = original.header.files.dist.files['menu.js'];
   assert.deepEqual(patched.header, original.header);
   assert.deepEqual(after.subarray(patched.start, patched.start + before.length - original.start), before.subarray(original.start));
   patcher.change(target, 'restore', stopped);
   assert.deepEqual(fs.readFileSync(target), before);
   assert.deepEqual(fs.readFileSync(process.env.AG_TEST_ASAR), before);
+});
+
+test('older patch upgrades directly while retaining original backup and exact restore', async t => {
+  const { target, dir, before } = await fixture(t);
+  const preload = asar.read(asar.parse(before), 'dist/preload.js');
+  const old = asar.replace(before, 'dist/preload.js', Buffer.concat([preload, Buffer.from(`\n// ${patcher.MARKER} old version`)]));
+  const backupDir = path.join(dir, '.antigravity-local-zh');
+  fs.mkdirSync(backupDir);
+  const originalHash = asar.sha256(before), oldHash = asar.sha256(old);
+  fs.writeFileSync(path.join(backupDir, `${originalHash}.asar`), before);
+  fs.writeFileSync(path.join(backupDir, `${oldHash}.json`), JSON.stringify({ schema: 1, original: originalHash, patched: oldHash, version: '2.12.2', toolVersion: '0.1.0' }));
+  fs.writeFileSync(target, old);
+  assert.equal(patcher.status(target).updateAvailable, true);
+  patcher.change(target, 'install', stopped);
+  assert.equal(patcher.status(target).updateAvailable, false);
+  assert.equal(fs.readdirSync(backupDir).filter(name => name.endsWith('.asar')).length, 1);
+  assert.deepEqual(fs.readFileSync(path.join(backupDir, `${originalHash}.asar`)), before);
+  patcher.change(target, 'restore', stopped);
+  assert.deepEqual(fs.readFileSync(target), before);
+});
+
+test('unknown native menu entry blocks installation before backup writes', async t => {
+  const { target, dir, before } = await fixture(t);
+  const changed = asar.replace(before, 'dist/menu.js', Buffer.from('unknown menu'));
+  fs.writeFileSync(target, changed);
+  assert.throws(() => patcher.change(target, 'install', stopped), /菜单入口/);
+  assert.deepEqual(fs.readFileSync(target), changed);
+  assert.equal(fs.existsSync(path.join(dir, '.antigravity-local-zh')), false);
 });

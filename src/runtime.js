@@ -12,10 +12,49 @@ function localize(window, dictionary) {
     '.monaco-editor', '.xterm', '.terminal', '.view-lines', '.hljs',
     '.markdown', '.markdown-body', '.prose', '[data-message-id]', '[data-message-author-role]',
     '[data-conversation-id]', '[data-session-id]', '[data-thread-id]',
-    '[data-local-zh="off"]'
+    '[data-project-id]', '[data-workspace-id]', '[data-local-zh="off"]'
   ].join(',');
   // Deliberately exclude generic div/span/body text: it may be a conversation or filename.
-  const controls = 'button,[role="button"],[role="menuitem"],[role="tab"],[role="tooltip"],label,option';
+  const controls = 'button,[role="button"],[role="menuitem"],[role="tab"],[role="tooltip"],label,option,h1,h2,h3,h4,h5,h6,[role="heading"]';
+  const panels = new WeakSet();
+  let settingsPanel = null;
+  const navigation = new Set(['New Conversation', 'Conversation History', 'Scheduled Tasks', 'Install IDE', 'Provide Feedback']);
+  // A settings modal may be built entirely from divs, without ARIA roles.
+  // Recognize a concrete combination of settings navigation and content, never body.
+  function discoverPanels() {
+    if (settingsPanel?.isConnected) return;
+    const walker = document.createTreeWalker(document.body || document.documentElement, 4);
+    const anchors = [
+      'Configure agent execution, queued message delivery, and permissions.',
+      '配置智能体执行、排队消息发送和权限。'
+    ];
+    let text;
+    while ((text = walker.nextNode())) {
+      const value = text.nodeValue.trim();
+      const navigationAnchor = value === 'Settings' || value === dictionary.Settings;
+      if ((!anchors.includes(value) && !navigationAnchor) || !eligible(text.parentElement)) continue;
+      for (let parent = text.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
+        const content = parent.textContent;
+        if (['Application', 'Customizations', 'Browser'].every(key =>
+          content.includes(key) || content.includes(dictionary[key]))) {
+          const panel = navigationAnchor ? parent.parentElement : parent;
+          if (panel && panel !== document.body && panel !== document.documentElement) {
+            panels.add(panel);
+            settingsPanel = panel;
+            return;
+          }
+          break;
+        }
+      }
+    }
+  }
+  function inPanel(element) {
+    for (let parent = element; parent; parent = parent.parentElement) {
+      if (panels.has(parent)) return true;
+      if (parent.matches('dialog,[role="dialog"],[aria-modal="true"]')) return true;
+    }
+    return false;
+  }
   const attributes = ['title', 'aria-label', 'aria-description', 'placeholder'];
   const eligible = element => element && !element.closest(protectedSelector);
   function translate(value) {
@@ -25,7 +64,8 @@ function localize(window, dictionary) {
   function visit(node) {
     if (node.nodeType === 3) {
       const parent = node.parentElement;
-      if (eligible(parent) && parent.closest(controls)) {
+      const key = node.nodeValue.trim().replace(/\s+/g, ' ');
+      if (eligible(parent) && (parent.closest(controls) || inPanel(parent) || navigation.has(key))) {
         const next = translate(node.nodeValue);
         if (next !== node.nodeValue) node.nodeValue = next;
       }
@@ -42,6 +82,7 @@ function localize(window, dictionary) {
     for (const child of node.childNodes) visit(child);
   }
   function start() {
+    discoverPanels();
     visit(document.documentElement);
     const pending = new Set();
     let timer = null;
@@ -60,7 +101,17 @@ function localize(window, dictionary) {
         timer = null;
         observer.disconnect();
         try {
-          for (const node of pending) if (node.isConnected) visit(node);
+          discoverPanels();
+          // A newly inserted settings panel can also contain previously mounted nodes.
+          const roots = new Set();
+          for (const node of pending) if (node.isConnected) {
+            let root = node.nodeType === 1 ? node : node.parentElement;
+            for (let parent = root; parent; parent = parent.parentElement) {
+              if (panels.has(parent)) { root = parent; break; }
+            }
+            roots.add(root || node);
+          }
+          for (const root of roots) visit(root);
         } finally {
           pending.clear();
           observer.observe(document.documentElement, options);

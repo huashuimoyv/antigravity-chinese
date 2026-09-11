@@ -7,9 +7,12 @@ const { execFileSync } = require('node:child_process');
 const { Script } = require('node:vm');
 const asar = require('./asar');
 const runtime = require('./runtime');
+const menuRuntime = require('./menu');
 const dictionary = require('../dict/zh-CN.json');
 const MARKER = 'ANTIGRAVITY_LOCAL_ZH_V1';
 const PRELOAD = 'dist/preload.js';
+const MENU = 'dist/menu.js';
+const MENU_HASH = '6df72cd3b74cb9f60cb50ef1defe1b403c8d2e2375b38228a012c5ac53feebc8';
 const SUPPORTED = { '2.12.2': 'f42381a56cc73aee978a1ea966e8b597959af80c98aba32d296740616810cce9' };
 
 function locate(custom) {
@@ -63,7 +66,12 @@ function build(buffer) {
   const addition = `\n;/* ${MARKER} */\ntry { (${runtime.toString()})(window, ${JSON.stringify(dictionary)}); } catch (error) { console.error('[local-zh]', error); }\n`;
   const after = Buffer.concat([before, Buffer.from(addition)]);
   new Script(after.toString('utf8'), { filename: PRELOAD });
-  const output = asar.replace(buffer, PRELOAD, after);
+  let output = asar.replace(buffer, PRELOAD, after);
+  const menu = asar.read(asar.parse(buffer), MENU);
+  if (asar.sha256(menu) !== MENU_HASH) throw new Error('未审核的原生菜单入口，拒绝写入');
+  const menuAfter = Buffer.concat([menu, Buffer.from(`\n;/* ${MARKER}_MENU */\n(${menuRuntime.toString()})(exports, require('electron'), ${JSON.stringify(dictionary)});\n`)]);
+  new Script(menuAfter.toString('utf8'), { filename: MENU });
+  output = asar.replace(output, MENU, menuAfter);
   if (!asar.read(asar.parse(output), PRELOAD).equals(after)) throw new Error('输出校验失败');
   return output;
 }
@@ -132,8 +140,8 @@ function swap(target, before, after, guard) {
 function status(target) {
   regular(target);
   const info = inspect(fs.readFileSync(target));
-  if (info.patched) readBackup(backupDir(target), info);
-  return { ...info, state: info.patched ? '已汉化，恢复备份有效' : info.supported ? '未汉化，可安装' : '未知版本或已修改，拒绝安装' };
+  const updateAvailable = info.patched && asar.sha256(build(readBackup(backupDir(target), info))) !== info.hash;
+  return { ...info, updateAvailable, state: info.patched ? (updateAvailable ? '已汉化，有本地新版可更新' : '已汉化，恢复备份有效') : info.supported ? '未汉化，可安装' : '未知版本或已修改，拒绝安装' };
 }
 
 function change(target, action, guard = assertStopped) {
@@ -144,11 +152,9 @@ function change(target, action, guard = assertStopped) {
   const info = inspect(before);
   // Prepare and validate before creating any files beside the application.
   if (action === 'restore' && !info.patched) return { changed: false, state: '没有本工具补丁，无需恢复' };
-  if (action === 'install' && info.patched) {
-    readBackup(backupDir(target), info);
-    return { changed: false, state: '已安装；更新本工具请先恢复再安装' };
-  }
-  const after = action === 'install' ? build(before) : readBackup(backupDir(target), info);
+  const original = info.patched ? readBackup(backupDir(target), info) : before;
+  const after = action === 'install' ? build(original) : original;
+  if (after.equals(before)) return { changed: false, state: '已安装当前版本，无需重复安装' };
   const dir = backupDir(target, true);
   const lock = path.join(dir, 'operation.lock');
   try { fs.mkdirSync(lock); } catch (error) {
@@ -157,10 +163,11 @@ function change(target, action, guard = assertStopped) {
   }
   try {
     if (action === 'install') {
-      keepBackup(path.join(dir, `${info.hash}.asar`), before);
+      const originalHash = asar.sha256(original);
+      keepBackup(path.join(dir, `${originalHash}.asar`), original);
       const hash = asar.sha256(after);
-      const record = Buffer.from(JSON.stringify({ schema: 1, original: info.hash, patched: hash,
-        version: info.version, toolVersion: '0.1.0' }, null, 2) + '\n');
+      const record = Buffer.from(JSON.stringify({ schema: 1, original: originalHash, patched: hash,
+        version: info.version, toolVersion: '0.2.0' }, null, 2) + '\n');
       keepBackup(path.join(dir, `${hash}.json`), record);
       readBackup(dir, { ...info, hash });
     }

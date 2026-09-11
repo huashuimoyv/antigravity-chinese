@@ -25,7 +25,8 @@ function Set-Buttons {
     $Ui.PathBox.IsEnabled = $idle
     $Ui.BrowseButton.IsEnabled = $idle
     $Ui.CheckButton.IsEnabled = $idle
-    $Ui.InstallButton.IsEnabled = $idle -and $null -ne $script:LastStatus -and $script:LastStatus.supported -and -not $script:LastStatus.patched
+    $Ui.InstallButton.IsEnabled = $idle -and $null -ne $script:LastStatus -and (($script:LastStatus.supported -and -not $script:LastStatus.patched) -or $script:LastStatus.updateAvailable)
+    if ($null -ne $script:LastStatus -and $script:LastStatus.updateAvailable) { $Ui.InstallButton.Content = '更新汉化' } else { $Ui.InstallButton.Content = '安装汉化' }
     $Ui.RestoreButton.IsEnabled = $idle -and $null -ne $script:LastStatus -and $script:LastStatus.patched
 }
 
@@ -108,6 +109,10 @@ function Complete-Operation {
         if ($result.patched) {
             $Ui.StatusTitle.Text = '已启用本地汉化'
             $Ui.StatusDetail.Text = '恢复备份校验有效。重新打开 Antigravity 即可使用。'
+            if ($result.updateAvailable) {
+                $Ui.StatusTitle.Text = '有本地新版可以更新'
+                $Ui.StatusDetail.Text = '点击“更新汉化”应用新词库和设置页翻译，原始恢复备份会保留。'
+            }
             $Ui.StatusDot.Fill = '#177A70'
         } elseif ($result.supported) {
             $Ui.StatusTitle.Text = '准备就绪，可以汉化'
