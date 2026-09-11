@@ -1,0 +1,19 @@
+{
+  "name": "antigravity-chinese-local",
+  "version": "0.1.0",
+  "private": true,
+  "description": "可审阅、离线运行、可恢复的 Antigravity Windows 本地中文补丁",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "test": "node --test",
+    "check": "node cli.js check",
+    "status": "node cli.js status"
+  },
+  "devDependencies": {
+    "@electron/asar": "4.3.0",
+    "jsdom": "26.1.0"
+  }
+}
