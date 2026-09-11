@@ -8,7 +8,21 @@
 
 要求 Windows 10/11、Node.js 22.12 或更高版本、已安装 Antigravity 桌面客户端。此工具不适用于独立 Antigravity IDE。
 
-下载或克隆本仓库，在仓库目录打开终端：
+### 图形窗口（推荐）
+
+双击仓库目录中的 **`启动汉化工具.vbs`**，即可打开原生 Windows 窗口，不显示命令行黑框。窗口自动识别客户端，首次打开只检查状态。
+
+1. 保存工作并完全退出 Antigravity。
+2. 窗口显示“准备就绪，可以汉化”后，点击“安装汉化”。
+3. 完成后手动打开 Antigravity。需要恢复时，退出客户端后点击“恢复英文”。
+
+可通过“浏览…”选择 `Antigravity.exe` 或 `app.asar`，也可手动输入安装目录；路径变化后点击“重新检查”。操作期间按钮和路径输入被禁用，窗口会等待操作完成后再允许关闭。错误与执行结果显示在“操作记录”中，不自动写入日志文件。
+
+如果系统禁用了 Windows Script Host，可双击 **`gui.cmd`** 打开同一窗口，并查看启动错误。图形界面使用 Windows PowerShell 和 WPF，复用 `cli.js`，没有新增 npm 依赖。启动参数中的 `ExecutionPolicy Bypass` 只作用于本次 PowerShell 进程，不修改系统执行策略，也不请求管理员权限。请只运行自己检查过的本地文件。
+
+### 命令行
+
+在仓库目录打开终端：
 
 ```powershell
 node cli.js check
@@ -77,6 +91,14 @@ Remove-Item Env:\AG_TEST_ASAR
 测试覆盖 ASAR 兼容性、保留外置文件记录、安装幂等性、精确恢复、损坏备份、缺失记录、未知入口、操作锁、写入失败、并发变化，以及动态 DOM 翻译与受保护区域。普通事务测试使用合成资源包并只在测试中模拟其允许指纹，不上传 Google 客户端代码。CI 没有客户端安装包，会明确跳过真实副本测试。
 
 当前验证记录见 [VALIDATION.md](VALIDATION.md)。资源包副本测试通过不代表已完成真实桌面启动和视觉验收。
+
+图形窗口的实际交互测试（只修改临时副本，需要未汉化的受支持资源包）：
+
+```powershell
+powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File test/gui-smoke.ps1 -SourceAsar "安装目录\resources\app.asar"
+```
+
+界面定义在 `gui/window.xaml`，操作逻辑在 `gui.ps1`。PowerShell 文件使用带 BOM 的 UTF-8 编码，以保证 Windows PowerShell 5.1 正确显示中文。
 
 ## 来源与维护
 
