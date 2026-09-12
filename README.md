@@ -5,13 +5,13 @@
 **专为 Google 反重力（Antigravity 2.12.2）打造的高安全、纯离线、逐字节可还原的 Windows 本地汉化工具。**  
 *反重力汉化 · Antigravity 汉化 · 零外部依赖 · 非破坏性 ASAR 追加 · 代码编辑防误伤 · 原生无黑框 GUI · 650+ 精细词条*
 
-[![Release](https://img.shields.io/github/v/release/huashuimoyv/antigravity-chinese-local?label=Release&color=blue&logo=github)](https://github.com/huashuimoyv/antigravity-chinese-local/releases)
+[![Release](https://img.shields.io/github/v/release/huashuimoyv/antigravity-chinese?label=Release&color=blue&logo=github)](https://github.com/huashuimoyv/antigravity-chinese/releases)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.12-339933?logo=node.js)](https://nodejs.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?logo=windows)](https://www.microsoft.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/Tests-21%20Passed-brightgreen)](test/)
 
-[📥 立即下载便携版 (Releases)](https://github.com/huashuimoyv/antigravity-chinese-local/releases/latest) · [✨ 方案对比](#-与传统汉化方案的对比) · [🚀 快速上手](#-快速上手) · [🛡️ 安全机制](#️-安全与容灾设计)
+[📥 立即下载便携版 (Releases)](https://github.com/huashuimoyv/antigravity-chinese/releases/latest) · [✨ 方案对比](#-与传统汉化方案的对比) · [🚀 快速上手](#-快速上手) · [🛡️ 安全机制](#️-安全与容灾设计)
 
 </div>
 
@@ -21,7 +21,7 @@
 
 在体验社区早期汉化方案时，开发者通常会面临一些顾虑：**“需要额外安装未知环境”、“解包重打包损坏原生模块”、“误翻译了代码编辑器里的变量”、“官方更新后无法干净还原为原装文件”**。
 
-本项目 (`antigravity-chinese-local`) 由此诞生，并确立了**安全无损、透明可审阅**的核心原则：
+本项目 (`antigravity-chinese`) 由此诞生，并确立了**安全无损、透明可审阅**的核心原则：
 
 ### 📊 与传统汉化方案的对比
 
@@ -59,7 +59,7 @@
 
 **电脑无需安装 Node.js，真正开箱即用：**
 
-1. 前往 [Releases 页面](https://github.com/huashuimoyv/antigravity-chinese-local/releases/latest) 下载 **`antigravity-chinese-local-v0.2.0-standalone.zip`**；
+1. 前往 [Releases 页面](https://github.com/huashuimoyv/antigravity-chinese/releases/latest) 下载 **`antigravity-chinese-local-v0.2.0-standalone.zip`**；
 2. 完全退出 Antigravity 客户端后，解压该压缩包；
 3. 双击运行 **`启动汉化工具.vbs`**（原生窗口，无命令行黑框）；
 4. 窗口识别客户端状态后，点击 **“安装汉化”**（旧版用户点击 **“更新汉化”**）；
