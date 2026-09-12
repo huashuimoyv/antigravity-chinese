@@ -73,3 +73,13 @@ test('dictionary is exact-only, with unique raw keys and no executable rules', (
     assert.match(value, /[\u4e00-\u9fff]/);
   }
 });
+
+test('translates extended controls and auxiliary navigation items', async t => {
+  const w = await page(t, '<a>Documentation</a><div role="switch">Allow</div><summary>Details</summary><div>Subagents</div><textarea placeholder="Describe the bug you encountered...">Custom code</textarea>');
+  assert.equal(w.document.querySelector('a').textContent, '文档');
+  assert.equal(w.document.querySelector('[role="switch"]').textContent, '允许');
+  assert.equal(w.document.querySelector('summary').textContent, '详情');
+  assert.equal(w.document.querySelector('div:not([role])').textContent, '子智能体');
+  assert.equal(w.document.querySelector('textarea').placeholder, '描述你遇到的问题…');
+  assert.equal(w.document.querySelector('textarea').value, 'Custom code');
+});

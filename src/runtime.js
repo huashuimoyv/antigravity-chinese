@@ -15,10 +15,14 @@ function localize(window, dictionary) {
     '[data-project-id]', '[data-workspace-id]', '[data-local-zh="off"]'
   ].join(',');
   // Deliberately exclude generic div/span/body text: it may be a conversation or filename.
-  const controls = 'button,[role="button"],[role="menuitem"],[role="tab"],[role="tooltip"],label,option,h1,h2,h3,h4,h5,h6,[role="heading"]';
+  const controls = 'button,[role="button"],[role="menuitem"],[role="tab"],[role="tooltip"],label,option,h1,h2,h3,h4,h5,h6,[role="heading"],a,[role="radio"],[role="checkbox"],[role="switch"],summary';
   const panels = new WeakSet();
   let settingsPanel = null;
-  const navigation = new Set(['New Conversation', 'Conversation History', 'Scheduled Tasks', 'Install IDE', 'Provide Feedback']);
+  const navigation = new Set([
+    'New Conversation', 'Conversation History', 'Scheduled Tasks', 'Install IDE', 'Provide Feedback',
+    'Subagents', 'Background Tasks', 'Artifacts', 'Files Changed', 'Terminals',
+    'Skills & Customizations', 'Active Workspace'
+  ]);
   // A settings modal may be built entirely from divs, without ARIA roles.
   // Recognize a concrete combination of settings navigation and content, never body.
   function discoverPanels() {
@@ -71,14 +75,17 @@ function localize(window, dictionary) {
       }
       return;
     }
-    if (node.nodeType !== 1 || !eligible(node)) return;
-    // Input values and application data attributes are never modified.
-    for (const name of attributes) {
-      if (!node.hasAttribute(name)) continue;
-      const value = node.getAttribute(name);
-      const next = translate(value);
-      if (next !== value) node.setAttribute(name, next);
+    if (node.nodeType !== 1) return;
+    if (eligible(node) || (node.tagName === 'TEXTAREA' && !node.closest('.monaco-editor,.terminal,.xterm'))) {
+      // Input values and application data attributes are never modified.
+      for (const name of attributes) {
+        if (!node.hasAttribute(name)) continue;
+        const value = node.getAttribute(name);
+        const next = translate(value);
+        if (next !== value) node.setAttribute(name, next);
+      }
     }
+    if (!eligible(node)) return;
     for (const child of node.childNodes) visit(child);
   }
   function start() {

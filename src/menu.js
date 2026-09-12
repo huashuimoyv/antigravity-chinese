@@ -7,8 +7,9 @@ function installMenuTranslation(api, electron, dictionary) {
   const labels = new Set(['File', 'Edit', 'View', 'Window', 'Help', 'New Window', 'Docs',
     'Undo', 'Redo', 'Cut', 'Copy', 'Paste', 'Paste and Match Style', 'Delete', 'Select All',
     'Reload', 'Force Reload', 'Toggle Developer Tools', 'Actual Size', 'Reset Zoom',
-    'Zoom In', 'Zoom Out', 'Toggle Full Screen', 'Minimize', 'Close', 'Close Window',
-    'Quit', 'Exit', 'About Antigravity']);
+    'Zoom In', 'Zoom Out', 'Toggle Full Screen', 'Toggle Fullscreen', 'Minimize', 'Close', 'Close Window',
+    'Quit', 'Exit', 'About Antigravity', 'Preferences', 'Preferences...', 'Settings...',
+    'Check for Updates...', 'Show All', 'Hide Others', 'Hide Antigravity']);
   function walk(menu, translate) {
     for (const item of menu?.items || []) {
       if (translate) {
