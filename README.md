@@ -1,9 +1,9 @@
-# Antigravity Local ZH | 深度汉化与无损补丁
+# Google 反重力 (Antigravity) 中文汉化补丁 | 深度无损便携版
 
 <div align="center">
 
-**为开发者打造的高安全、纯离线、逐字节可还原的 Antigravity (2.12.2) 桌面汉化解决方案。**  
-*零外部依赖 · 非破坏性 ASAR 追加 · 代码编辑绝对防误伤 · 原生无黑框 GUI · 650+ 精细词条*
+**专为 Google 反重力（Antigravity 2.12.2）打造的高安全、纯离线、逐字节可还原的 Windows 本地汉化工具。**  
+*反重力汉化 · Antigravity 汉化 · 零外部依赖 · 非破坏性 ASAR 追加 · 代码编辑防误伤 · 原生无黑框 GUI · 650+ 精细词条*
 
 [![Release](https://img.shields.io/github/v/release/huashuimoyv/antigravity-chinese-local?label=Release&color=blue&logo=github)](https://github.com/huashuimoyv/antigravity-chinese-local/releases)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.12-339933?logo=node.js)](https://nodejs.org/)
