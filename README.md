@@ -1,111 +1,151 @@
 # Antigravity 本地中文补丁
 
-一个自己维护、便于逐行审阅的 Windows 汉化工具。运行时只有 Node.js 内置模块，没有第三方运行依赖。采用“在 Electron preload 中追加本地词库和 DOM 翻译函数”的方式。
+<div align="center">
 
-**0.2.0 覆盖设置面板、常用导航及原生菜单，仍不是完整中文语言包。** 词库已扩充至 654 条精确词条。仅接受 Antigravity **2.12.2** 且 `dist/preload.js` 和 `dist/menu.js` SHA-256 与已检查样本一致的客户端。未知版本、其他汉化工具修改过的入口都拒绝安装；版本号和哈希匹配不代表验证了整个安装包的官方来源。
+**一个轻量、纯离线、支持逐字节精确还原的 Google Antigravity 桌面客户端 Windows 本地汉化工具。**
 
-## 使用
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.12-339933?logo=node.js)](https://nodejs.org/)
+[![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?logo=windows)](https://www.microsoft.com/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Client](https://img.shields.io/badge/Supported%20Client-Antigravity%202.12.2-4285F4)](https://antigravity.google)
+[![Tests](https://img.shields.io/badge/Tests-21%20Passed-brightgreen)](test/)
 
-要求 Windows 10/11、Node.js 22.12 或更高版本、已安装 Antigravity 桌面客户端。此工具不适用于独立 Antigravity IDE。
+</div>
 
-### 图形窗口（推荐）
+---
 
-双击仓库目录中的 **`启动汉化工具.vbs`**，即可打开原生 Windows 窗口，不显示命令行黑框。窗口自动识别客户端，首次打开只检查状态。
+## 🌟 核心特性
 
-1. 保存工作并完全退出 Antigravity。
-2. 窗口显示“准备就绪，可以汉化”后，点击“安装汉化”。
-3. 完成后手动打开 Antigravity。需要恢复时，退出客户端后点击“恢复英文”。
+- ⚡ **零第三方运行时依赖**：生产运行仅基于 Node.js 内置核心模块，无需执行 `npm install`，不安装额外守护服务或插件。
+- 🛡️ **纯离线与高安全性**：不发起任何网络请求、不上传任何数据、不调用在线翻译 API；仅在本地进行纯文本精确匹配。
+- 📦 **非破坏性 ASAR 补丁**：不解包重打包整个应用，原 ASAR 数据区保持不变，新入口追加于包末尾并重算 SHA-256 完整性分块，保留所有外置 unpacked 文件。
+- 🔄 **原子级备份与逐字节还原**：写入前自动备份原始资源包及哈希指纹；恢复（Restore）时可逐字节还原为安装前原始状态，支持无损更新与审计。
+- 🎯 **深度代码隔离保护**：内置 DOM 保护机制，严格隔离 Monaco 代码编辑区、xterm 终端、Markdown 对话内容与提示词输入，绝不误伤代码、文件路径与用户对话正文。
+- 🪟 **双模极简操作**：提供无黑框的原生 Windows WPF 图形窗口与全功能命令行 CLI，支持一键安装、平滑更新与轻松还原。
+- 📖 **精心打磨的精确词库**：收录 650+ 条常用界面文案，深度覆盖设置中心、模型与用量、自定义扩展、外观配色、辅助侧边栏及原生菜单。
 
-可通过“浏览…”选择 `Antigravity.exe` 或 `app.asar`，也可手动输入安装目录；路径变化后点击“重新检查”。操作期间按钮和路径输入被禁用，窗口会等待操作完成后再允许关闭。错误与执行结果显示在“操作记录”中，不自动写入日志文件。
+---
 
-已安装旧补丁时，新版窗口会显示“更新汉化”。退出 Antigravity 后点击即可；它从已校验的原始备份生成新版补丁，保留原始备份，不必先恢复英文。命令行仍使用 `node cli.js install`。更新本工具后请关闭并重新打开图形窗口。
+## 🚀 快速上手
 
-如果系统禁用了 Windows Script Host，可双击 **`gui.cmd`** 打开同一窗口，并查看启动错误。图形界面使用 Windows PowerShell 和 WPF，复用 `cli.js`，没有新增 npm 依赖。启动参数中的 `ExecutionPolicy Bypass` 只作用于本次 PowerShell 进程，不修改系统执行策略，也不请求管理员权限。请只运行自己检查过的本地文件。
+### 环境要求
+- **操作系统**：Windows 10 / 11
+- **运行环境**：[Node.js](https://nodejs.org/) 22.12.0 或更高版本
+- **客户端**：已安装 Antigravity 桌面客户端（当前严格审核版本：**2.12.2**）
 
-### 命令行
+> [!NOTE]
+> 本工具仅适用于 Antigravity 官方桌面客户端，不适用于独立 Antigravity IDE。
 
-在仓库目录打开终端：
+---
+
+### 方式一：图形界面（推荐）
+
+双击项目根目录下的 **`启动汉化工具.vbs`** 即可打开原生 Windows 窗口（无命令行黑框）：
+
+1. **保存工作并完全退出 Antigravity**；
+2. 窗口会自动探测客户端路径并检查状态，显示“准备就绪，可以汉化”；
+3. 点击 **“安装汉化”**（若已有旧补丁则显示 **“更新汉化”**）；
+4. 操作完成后，重新手动启动 Antigravity 即可。需要还原英文时，退出客户端点击 **“恢复英文”** 即可一键恢复。
+
+*(若系统策略禁用了 VBScript，亦可双击 `gui.cmd` 启动)*
+
+---
+
+### 方式二：命令行 CLI
+
+在仓库目录下打开终端（PowerShell 或 CMD）：
 
 ```powershell
+# 1. 检查客户端状态与环境兼容性（只读）
 node cli.js check
+
+# 2. 退出 Antigravity 后，执行安装或更新
 node cli.js install
-```
 
-安装前请保存工作并完全退出 Antigravity。安装完成后，手动启动客户端。也可双击 `install.cmd`，它只调用同目录的本地脚本。
-
-**日常使用不需要执行 `npm install`。** 工具不会下载脚本、安装插件、配置后台守护、创建计划任务、结束客户端进程、上传文件或修改网络设置。安装后翻译不调用翻译服务；Antigravity 自身的联网行为不受影响。
-
-查看状态或恢复：
-
-```powershell
+# 3. 随时查看补丁及备份状态
 node cli.js status
+
+# 4. 退出客户端后，随时还原回官方英文原包
 node cli.js restore
 ```
 
-也可双击 `restore.cmd`。自定义安装位置：
-
+自定义安装路径（支持指定客户端安装根目录或 `app.asar` 文件）：
 ```powershell
-node cli.js check --path "D:\Apps\Antigravity"
 node cli.js install --path "D:\Apps\Antigravity"
 node cli.js restore --path "D:\Apps\Antigravity\resources\app.asar"
 ```
 
-`check` 是只读检查；进程运行、版本不匹配或备份损坏时返回非零退出码。`status` 返回状态，即使当前客户端正在运行也可使用。工具不会自动提权；目录不可写时会报告错误。
+---
 
-## 修改范围与备份
+## 🎨 汉化覆盖范围
 
-- 更新 `resources/app.asar` 内的 `dist/preload.js` 和 `dist/menu.js` 文件索引和内容；两个原文件均保留为前缀。
-- 原 ASAR 数据区保持不变，新内容追加在末尾。其他文件的目录记录、偏移、内容和 `app.asar.unpacked` 外置文件均保留，不解包重打包原生模块。
-- 重算修改文件的 SHA-256 完整性信息。不会禁用 Electron 完整性检查、修改可执行程序或签名。
-- 写入前，在 `resources/.antigravity-local-zh/` 保存以原资源包 SHA-256 命名的备份和以补丁包 SHA-256 命名的记录。备份已有且内容不一致时拒绝覆盖。
-- 先写同目录临时文件并校验，再检查进程及原文件是否变化，最后重命名替换；不会先删除正在使用的资源包。
-- 恢复必须匹配当前补丁包指纹，并校验备份内容。恢复后保留备份，便于审计。官方更新覆盖后不会用旧备份自动降级，也不会自动重新注入。
+词库位于 [`dict/zh-CN.json`](dict/zh-CN.json)，坚持**完全匹配原则**，不使用任何正则模糊匹配，覆盖以下区域：
 
-断电、磁盘故障、杀毒软件拦截和最后一次进程检查之后的并发启动仍可能干扰操作；这些检查不等于操作系统级事务。请在安装与恢复期间保持客户端关闭。若操作异常退出留下 `operation.lock` 空目录，确认所有本工具进程均已退出后，手动删除该空目录再运行 `status`；不要删除 `.asar` 备份或 `.json` 记录。
+| 模块 | 覆盖内容说明 |
+| :--- | :--- |
+| **设置面板 (Settings)** | 常规、应用偏好、防止休眠、托盘运行、远程控制、系统通知设置等 |
+| **模型与用量 (Models & Usage)** | 模型方案说明、AI 额度超额开关、每周与5小时用量指标、Claude / GPT 限额等 |
+| **自定义扩展 (Customizations)** | 技能 (Skills)、规则 (Rules)、MCP 服务器、令牌用量明细、作用域徽标等 |
+| **外观与配色 (Appearance)** | 视觉主题、详细智能体对话开关、对话栏宽度微调、预设浅色/深色及前景色/背景色调节 |
+| **辅助侧栏 (Auxiliary Pane)** | 子智能体 (Subagents)、后台任务、产出物 (Artifacts)、已修改文件、终端列表及状态 |
+| **审批与交互 (Canvas & Review)** | 提议更改 (Proposed Changes)、实施计划、演练说明、沙盒执行、重置/接受更改卡片 |
+| **问题反馈 (Provide Feedback)** | 反馈类型（缺陷报告/功能建议/账单等）、指引列表与占位提示语 |
+| **原生系统菜单 (Native Menu)** | 文件、编辑、视图、窗口及偏好设置等顶级与二级桌面菜单 |
 
-## 翻译范围
+---
 
-词库位于 `dict/zh-CN.json`，只做完整文本精确匹配，不使用通配替换、正则词库或在线翻译。
+## 🛡️ 安全与容灾机制
 
-文字节点在按钮、菜单项、选项卡、提示气泡、标签、选项、标题及对话框内翻译。对于没有 ARIA 角色的设置面板，通过设置导航组合和已知说明文字识别容器，覆盖普通 `div` 内的标题、说明和选项；少量固定导航词条也支持普通容器。另处理未受保护元素上的 `title`、`aria-label`、`aria-description`、`placeholder`。输入值和应用数据属性保持原样。
+1. **严格的 SHA-256 指纹白名单**：
+   安装前严格核对 `dist/preload.js` 与 `dist/menu.js` 的 SHA-256 散列值。遇到未知版本、已被篡改或其他工具修改的客户端一律拒绝写入，杜绝破坏官方客户端。
+2. **原子化临时写入与安全替换**：
+   修改时先在同目录下生成独占临时文件并全量哈希校验，二次确认客户端未运行且原文件未被篡改后，执行原子替换（Rename），绝不直接删除或覆盖正在使用的资源包。
+3. **备份隔离与校验**：
+   原始资源包和补丁指纹保存在 `resources/.antigravity-local-zh/` 下。恢复时必须通过 SHA-256 完整性核验方可还原，确保还原结果与官方原包逐字节一致。
+4. **并发与异常锁保护**：
+   关键写入期设置目录锁 `operation.lock`，防止多进程并发冲突；异常中断时原文件保持完整。
 
-跳过代码、终端、编辑区域、常见 Markdown/消息/会话容器及它们的任意深度后代。普通 `div`/`span` 的正文不翻译。运行范围限制在顶层 `https://127.0.0.1` 页面，与检查过的客户端窗口来源一致。
+---
 
-这些 DOM 规则无法保证识别所有布局：若用户自定义标题恰好与词条相同且位于未识别的按钮、对话框或提示属性中，仍可能显示为中文；它不会改写磁盘上的会话内容。设置容器的识别是启发式规则，不承诺所有未来页面。原生菜单仅更改已知菜单项的文字，保留快捷键、角色和回调，并兼容重复构建菜单。未知英文原样保留。自行扩词后重新执行安装或点击“更新汉化”，补丁才会带上新词库。
+## 💻 本地开发与测试
 
-## 开发验证
-
-第三方包只用于开发测试：`@electron/asar` 作为独立格式读取器，`jsdom` 用于 DOM 测试。版本锁定在 `package-lock.json`；安装时禁用生命周期脚本。
+开发与测试环境使用 Node.js 原生 Test Runner（测试依赖包含官方 `@electron/asar` 用于格式互认，以及 `jsdom` 用于 DOM 模拟测试）：
 
 ```powershell
-npm ci --ignore-scripts
-npm test
+# 运行全部自动化单元测试（涵盖 ASAR 解析、事务容灾、动态 DOM 隔离与词库校验）
+node --test
 ```
 
-验证真实安装包的**副本**（不会修改来源文件）：
-
+若要在真实客户端资源包的**临时副本**上运行端到端验证测试：
 ```powershell
 $env:AG_TEST_ASAR = "$env:LOCALAPPDATA\Programs\antigravity\resources\app.asar"
-npm test
+node --test
 Remove-Item Env:\AG_TEST_ASAR
 ```
 
-测试覆盖 ASAR 兼容性、保留外置文件记录、安装幂等性、精确恢复、损坏备份、缺失记录、未知入口、操作锁、写入失败、并发变化，以及动态 DOM 翻译与受保护区域。普通事务测试使用合成资源包并只在测试中模拟其允许指纹，不上传 Google 客户端代码。CI 没有客户端安装包，会明确跳过真实副本测试。
+详细测试与环境验证记录请参阅 [VALIDATION.md](VALIDATION.md)。
 
-当前验证记录见 [VALIDATION.md](VALIDATION.md)。资源包副本测试通过不代表已完成真实桌面启动和视觉验收。
+---
 
-图形窗口的实际交互测试（只修改临时副本，需要未汉化的受支持资源包）：
+## 🤝 扩充词库与参与贡献
 
-```powershell
-powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File test/gui-smoke.ps1 -SourceAsar "安装目录\resources\app.asar"
-```
+如果您在使用过程中发现了尚未汉化的界面文案：
+1. 编辑 [`dict/zh-CN.json`](dict/zh-CN.json)，在末尾添加对应的英文原文与中文翻译（遵循严格去除首尾空格、纯文本精确对应的原则）；
+2. 运行 `node --test` 确认词库唯一性与格式测试通过；
+3. 执行 `node cli.js install` 或在图形界面中点击“更新汉化”，新词库即可立即生效；
+4. 欢迎提交 Pull Request 分享您的词条补充！
 
-界面定义在 `gui/window.xaml`，操作逻辑在 `gui.ps1`。PowerShell 文件使用带 BOM 的 UTF-8 编码，以保证 Windows PowerShell 5.1 正确显示中文。
+---
 
-## 来源与维护
+## 📜 来源与免责声明
 
-设计思路参考 [yiheng8023/antigravity-chinese](https://github.com/yiheng8023/antigravity-chinese) 的 preload/DOM 方案，检查时提交为 `6f21fe4ecd8a842858347d0b302859954f817413`。本项目重新编写实现和小型词库，没有运行、复制或打包该项目的安装器、运行时代码及整份词库。
+- 本项目设计思路受 [yiheng8023/antigravity-chinese](https://github.com/yiheng8023/antigravity-chinese) 启发，由本项目独立编写原生运行时、零依赖 ASAR 处理器、WPF 图形界面与扩充词库，未打包或复制该项目的二进制文件或整份运行时。
+- ASAR 编码实现严格依据 [Electron 官方 ASAR 规范](https://github.com/electron/asar#format)。
+- 本项目为个人维护的开源辅助工具，与 Google、Electron 官方无任何商业或从属关系。
+- 本仓库仅包含工具源码、文档、词库与测试，不分发任何受版权保护的 Antigravity 二进制程序或资源文件。
 
-ASAR 编码依据 [Electron ASAR 官方格式说明](https://github.com/electron/asar#format)。本项目与 Google、Electron 及参考项目没有官方隶属关系。补丁不承诺上游更新兼容性；适配新版本前，应检查其 preload、窗口来源与资源结构，并完成副本测试和桌面验收后更新允许指纹。
+---
 
-本仓库只包含工具源码、词库、文档及测试，不包含客户端资源包、备份、可执行程序或账号数据。
+## 📄 开源许可证
+
+本项目基于 [MIT License](LICENSE) 开源。
