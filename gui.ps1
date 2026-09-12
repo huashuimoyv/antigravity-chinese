@@ -1,4 +1,4 @@
-﻿param([string]$ClientPath = '')
+param([string]$ClientPath = '')
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
@@ -51,14 +51,21 @@ function Start-Operation([ValidateSet('status','check','install','restore')][str
     if ($null -ne $script:Job) { return }
     $script:LastError = $null
     try {
-        $node = Get-Command node.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($null -eq $node) { throw '未找到 Node.js。请安装 Node.js 22.12 或更高版本，然后重新打开本窗口。' }
+        $localNode = Join-Path $script:ProjectRoot 'node.exe'
+        if (-not (Test-Path $localNode)) { $localNode = Join-Path $script:ProjectRoot 'bin\node.exe' }
+        if (Test-Path $localNode) {
+            $nodeSource = (Resolve-Path $localNode).Path
+        } else {
+            $node = Get-Command node.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($null -eq $node) { throw '未找到 Node.js。请安装 Node.js 22.12 或更高版本，或使用内置 Node 的独立便携版。' }
+            $nodeSource = $node.Source
+        }
         $target = $Ui.PathBox.Text.Trim()
         if ($target -and [IO.Path]::GetFileName($target) -ieq 'Antigravity.exe') { $target = [IO.Path]::GetDirectoryName($target) }
         $arguments = (Quote-ProcessArgument (Join-Path $script:ProjectRoot 'cli.js')) + ' ' + $Command
         if ($target) { $arguments += ' --path ' + (Quote-ProcessArgument $target) }
         $info = New-Object Diagnostics.ProcessStartInfo
-        $info.FileName = $node.Source
+        $info.FileName = $nodeSource
         $info.Arguments = $arguments
         $info.WorkingDirectory = $script:ProjectRoot
         $info.UseShellExecute = $false
