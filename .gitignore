@@ -3,6 +3,7 @@ node_modules/
 *.asar
 *.asar.*
 *.exe
+!启动汉化工具.exe
 *.log
 .env*
 dist/
