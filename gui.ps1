@@ -1,4 +1,4 @@
-param([string]$ClientPath = '')
+﻿param([string]$ClientPath = '')
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
