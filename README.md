@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**专为 Google 反重力（Antigravity 2.12.2）打造的高安全、纯离线、逐字节可还原的 Windows 本地汉化工具。**  
+**专为 Google 反重力（Antigravity 2.12.2 / 2.15.0）打造的高安全、纯离线、逐字节可还原的 Windows 本地汉化工具。**  
 *反重力汉化 · Antigravity 汉化 · 零外部依赖 · 非破坏性 ASAR 追加 · 代码编辑防误伤 · 原生无黑框 GUI · 650+ 精细词条*
 
 [![Release](https://img.shields.io/github/v/release/huashuimoyv/antigravity-chinese?label=Release&color=blue&logo=github)](https://github.com/huashuimoyv/antigravity-chinese/releases)
@@ -51,7 +51,7 @@
 
 ### 环境要求
 - **操作系统**：Windows 10 / 11
-- **适用版本**：Antigravity 桌面客户端（当前审核版本：**2.12.2**）
+- **适用版本**：Antigravity 桌面客户端（当前审核版本：**2.12.2 / 2.15.0**）
 
 ---
 

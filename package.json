@@ -1,6 +1,6 @@
 {
   "name": "antigravity-chinese",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "可审阅、离线运行、可恢复的 Antigravity Windows 本地中文补丁",
   "license": "MIT",
