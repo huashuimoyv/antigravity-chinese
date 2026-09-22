@@ -15,7 +15,8 @@ const MENU = 'dist/menu.js';
 const MENU_HASH = '6df72cd3b74cb9f60cb50ef1defe1b403c8d2e2375b38228a012c5ac53feebc8';
 const SUPPORTED = {
   '2.12.2': 'f42381a56cc73aee978a1ea966e8b597959af80c98aba32d296740616810cce9',
-  '2.15.0': 'f42381a56cc73aee978a1ea966e8b597959af80c98aba32d296740616810cce9'
+  '2.15.0': 'f42381a56cc73aee978a1ea966e8b597959af80c98aba32d296740616810cce9',
+  '2.15.1': 'f42381a56cc73aee978a1ea966e8b597959af80c98aba32d296740616810cce9'
 };
 
 function locate(custom) {

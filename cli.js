@@ -3,7 +3,7 @@
 
 const patcher = require('./src/patcher');
 const args = process.argv.slice(2);
-const help = `Antigravity 本地汉化工具 0.2.1（Windows / Node.js 22.12+）
+const help = `Antigravity 本地汉化工具 0.2.2（Windows / Node.js 22.12+）
 
   node cli.js check                 检查客户端版本、补丁状态和进程
   node cli.js status                只读查看状态及备份校验
