@@ -12,11 +12,12 @@ const dictionary = require('../dict/zh-CN.json');
 const MARKER = 'ANTIGRAVITY_LOCAL_ZH_V1';
 const PRELOAD = 'dist/preload.js';
 const MENU = 'dist/menu.js';
-const MENU_HASH = '6df72cd3b74cb9f60cb50ef1defe1b403c8d2e2375b38228a012c5ac53feebc8';
+const MENU_HASH = '0bb689f3f77f5f30d9345302ff94ebabbe461c4b94de9ffdb711a19eeca0f04f';
 const SUPPORTED = {
   '2.12.2': 'f42381a56cc73aee978a1ea966e8b597959af80c98aba32d296740616810cce9',
   '2.15.0': 'f42381a56cc73aee978a1ea966e8b597959af80c98aba32d296740616810cce9',
-  '2.15.1': 'f42381a56cc73aee978a1ea966e8b597959af80c98aba32d296740616810cce9'
+  '2.15.1': 'f42381a56cc73aee978a1ea966e8b597959af80c98aba32d296740616810cce9',
+  '2.16.0': '3c26b88a493f2bc0f6a83379f0b02024ffdadc2b31424d56d2b7325732e59700'
 };
 
 function locate(custom) {

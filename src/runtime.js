@@ -15,7 +15,7 @@ function localize(window, dictionary) {
     '[data-project-id]', '[data-workspace-id]', '[data-local-zh="off"]'
   ].join(',');
   // Deliberately exclude generic div/span/body text: it may be a conversation or filename.
-  const controls = 'button,[role="button"],[role="menuitem"],[role="tab"],[role="tooltip"],label,option,h1,h2,h3,h4,h5,h6,[role="heading"],a,[role="radio"],[role="checkbox"],[role="switch"],summary';
+  const controls = 'button,[role="button"],[role="menuitem"],[role="menuitemradio"],[role="tab"],[role="tooltip"],label,option,[role="option"],h1,h2,h3,h4,h5,h6,[role="heading"],a,[role="radio"],[role="checkbox"],[role="switch"],summary';
   const panels = new WeakSet();
   let settingsPanel = null;
   const navigation = new Set([

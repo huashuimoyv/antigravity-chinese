@@ -9,7 +9,8 @@ function installMenuTranslation(api, electron, dictionary) {
     'Reload', 'Force Reload', 'Toggle Developer Tools', 'Actual Size', 'Reset Zoom',
     'Zoom In', 'Zoom Out', 'Toggle Full Screen', 'Toggle Fullscreen', 'Minimize', 'Close', 'Close Window',
     'Quit', 'Exit', 'About Antigravity', 'Preferences', 'Preferences...', 'Settings...',
-    'Check for Updates...', 'Show All', 'Hide Others', 'Hide Antigravity']);
+    'Check for Updates...', 'Show All', 'Hide Others', 'Hide Antigravity',
+    'Connect to WSL', 'Reopen Locally']);
   function walk(menu, translate) {
     for (const item of menu?.items || []) {
       if (translate) {

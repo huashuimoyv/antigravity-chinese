@@ -24,7 +24,7 @@ async function fixture(t) {
   // Only the synthetic preload is admitted by the fixture. Production allowlist stays immutable.
   t.mock.method(asar, 'sha256', data => Buffer.isBuffer(data) && data.equals(preload)
     ? 'f42381a56cc73aee978a1ea966e8b597959af80c98aba32d296740616810cce9'
-    : Buffer.isBuffer(data) && data.equals(menu) ? '6df72cd3b74cb9f60cb50ef1defe1b403c8d2e2375b38228a012c5ac53feebc8' : hash(data));
+    : Buffer.isBuffer(data) && data.equals(menu) ? '0bb689f3f77f5f30d9345302ff94ebabbe461c4b94de9ffdb711a19eeca0f04f' : hash(data));
   return { target, dir, before: fs.readFileSync(target) };
 }
 

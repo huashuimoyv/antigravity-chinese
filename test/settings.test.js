@@ -54,3 +54,45 @@ test('settings reopened directly on another tab is recognized by its navigation'
   runtime(dom.window, dictionary); await pause();
   assert.equal(dom.window.document.querySelector('main').textContent, '应用设置登录时启动');
 });
+
+test('translates global permissions section and popup dropdown options', async t => {
+  const dom = new JSDOM(`<div>Settings</div><div>New Conversation</div>
+    <div role="dialog"><main>
+      <div data-ui-label>Global Permissions</div>
+      <div data-ui-label>Security Preset</div>
+      <button>Turbo Mode</button>
+    </main></div>
+    <div role="listbox">
+      <div role="option">
+        <div>Default</div>
+        <div>Requires manual review for all terminal commands and file accesses outside of the working folders.</div>
+      </div>
+      <div role="option">
+        <div>Full machine</div>
+        <div>All terminal commands require review. The agent can read or write to any file in the machine.</div>
+      </div>
+      <div role="option">
+        <div>Turbo mode</div>
+        <div>Disables all safety barriers for maximal iteration velocity.</div>
+      </div>
+      <div role="option">
+        <div>Custom</div>
+        <div>Manually customize individual settings.</div>
+      </div>
+    </div>`, { url: 'https://127.0.0.1:1234/' });
+  t.after(() => dom.window.close());
+  runtime(dom.window, dictionary); await pause();
+  const doc = dom.window.document;
+  assert.equal(doc.querySelector('[data-ui-label]').textContent, '全局权限');
+  assert.equal(doc.querySelector('button').textContent, '极速模式');
+  const options = doc.querySelectorAll('[role="option"]');
+  assert.equal(options[0].children[0].textContent, '默认');
+  assert.equal(options[0].children[1].textContent, '所有终端命令以及工作区文件夹之外的文件访问都需要手动审核。');
+  assert.equal(options[1].children[0].textContent, '全机访问');
+  assert.equal(options[1].children[1].textContent, '所有终端命令都需要审核。智能体可以读取或写入本机的任意文件。');
+  assert.equal(options[2].children[0].textContent, '极速模式');
+  assert.equal(options[2].children[1].textContent, '禁用所有安全屏障，以实现最高迭代速度。');
+  assert.equal(options[3].children[0].textContent, '自定义');
+  assert.equal(options[3].children[1].textContent, '手动自定义各个单独设置。');
+});
+
