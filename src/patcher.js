@@ -18,8 +18,12 @@ const SUPPORTED = {
   '2.15.0': 'f42381a56cc73aee978a1ea966e8b597959af80c98aba32d296740616810cce9',
   '2.15.1': 'f42381a56cc73aee978a1ea966e8b597959af80c98aba32d296740616810cce9',
   '2.16.0': '3c26b88a493f2bc0f6a83379f0b02024ffdadc2b31424d56d2b7325732e59700',
-  '2.17.0': '3c26b88a493f2bc0f6a83379f0b02024ffdadc2b31424d56d2b7325732e59700'
+  '2.17.0': '3c26b88a493f2bc0f6a83379f0b02024ffdadc2b31424d56d2b7325732e59700',
+  '2.18.1': '3c26b88a493f2bc0f6a83379f0b02024ffdadc2b31424d56d2b7325732e59700',
+  '2.19.1': 'ed1c35b78075de3fe76e6a504e90c5ba6380a7b6491dc2e819f729911e4b38d2',
+  '2.22.0': '81d220de63447d27db95adf67d9711b59ee317b2338ba538f419b354a54b1f60'
 };
+const VERIFIED_PRELOAD_HASHES = new Set(Object.values(SUPPORTED));
 
 function locate(custom) {
   if (process.platform !== 'win32') throw new Error('首版只支持 Windows');
@@ -54,9 +58,14 @@ function inspect(buffer) {
   }
   const preload = asar.read(archive, PRELOAD);
   const source = preload.toString('utf8');
+  const preloadHash = asar.sha256(preload);
+  const isKnownPreload = SUPPORTED[pkg.version] === preloadHash || VERIFIED_PRELOAD_HASHES.has(preloadHash);
+  const isAdaptivePreload = source.includes('contextBridge') && source.includes('ipcRenderer');
+  const supported = isKnownPreload || isAdaptivePreload;
   return { version: pkg.version, hash: asar.sha256(buffer),
     patched: source.includes(MARKER),
-    supported: SUPPORTED[pkg.version] === asar.sha256(preload) };
+    supported,
+    adaptive: !isKnownPreload && isAdaptivePreload };
 }
 
 function build(buffer) {
@@ -74,7 +83,10 @@ function build(buffer) {
   new Script(after.toString('utf8'), { filename: PRELOAD });
   let output = asar.replace(buffer, PRELOAD, after);
   const menu = asar.read(asar.parse(buffer), MENU);
-  if (asar.sha256(menu) !== MENU_HASH) throw new Error('未审核的原生菜单入口，拒绝写入');
+  const menuSource = menu.toString('utf8');
+  const isKnownMenu = asar.sha256(menu) === MENU_HASH;
+  const isAdaptiveMenu = menuSource.includes('setupApplicationMenu') || (menuSource.includes('Menu') && menuSource.includes('exports'));
+  if (!isKnownMenu && !isAdaptiveMenu) throw new Error('未审核的原生菜单入口，拒绝写入');
   const menuAfter = Buffer.concat([menu, Buffer.from(`\n;/* ${MARKER}_MENU */\n(${menuRuntime.toString()})(exports, require('electron'), ${JSON.stringify(dictionary)});\n`)]);
   new Script(menuAfter.toString('utf8'), { filename: MENU });
   output = asar.replace(output, MENU, menuAfter);
@@ -146,8 +158,29 @@ function swap(target, before, after, guard) {
 function status(target) {
   regular(target);
   const info = inspect(fs.readFileSync(target));
-  const updateAvailable = info.patched && asar.sha256(build(readBackup(backupDir(target), info))) !== info.hash;
-  return { ...info, updateAvailable, state: info.patched ? (updateAvailable ? '已汉化，有本地新版可更新' : '已汉化，恢复备份有效') : info.supported ? '未汉化，可安装' : '未知版本或已修改，拒绝安装' };
+  let updateAvailable = false;
+  let backupValid = false;
+  if (info.patched) {
+    try {
+      const original = readBackup(backupDir(target), info);
+      updateAvailable = asar.sha256(build(original)) !== info.hash;
+      backupValid = true;
+    } catch {
+      updateAvailable = false;
+      backupValid = false;
+    }
+  }
+  let state;
+  if (info.patched) {
+    if (!backupValid) state = '已包含汉化补丁，但备份目录不完整';
+    else if (updateAvailable) state = '已汉化，有本地新版可更新';
+    else state = '已汉化，恢复备份有效';
+  } else if (info.supported) {
+    state = '未汉化，可安装';
+  } else {
+    state = '未知版本或已修改，拒绝安装';
+  }
+  return { ...info, updateAvailable, backupValid, state };
 }
 
 function change(target, action, guard = assertStopped) {
@@ -173,7 +206,7 @@ function change(target, action, guard = assertStopped) {
       keepBackup(path.join(dir, `${originalHash}.asar`), original);
       const hash = asar.sha256(after);
       const record = Buffer.from(JSON.stringify({ schema: 1, original: originalHash, patched: hash,
-        version: info.version, toolVersion: '0.2.1' }, null, 2) + '\n');
+        version: info.version, toolVersion: '1.0.0' }, null, 2) + '\n');
       keepBackup(path.join(dir, `${hash}.json`), record);
       readBackup(dir, { ...info, hash });
     }

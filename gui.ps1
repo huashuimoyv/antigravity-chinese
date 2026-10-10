@@ -1,4 +1,4 @@
-﻿param([string]$ClientPath = '')
+﻿param([string]$ClientPath = '', [switch]$Launch)
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
@@ -7,13 +7,46 @@ $script:Job = $null
 $script:LastStatus = $null
 $script:LastError = $null
 $script:UpdatingPath = $false
+$script:PendingLaunch = $false
+
 $reader = [System.Xml.XmlReader]::Create((Join-Path $PSScriptRoot 'gui\window.xaml'))
 try { $script:Window = [Windows.Markup.XamlReader]::Load($reader) } finally { $reader.Dispose() }
+
 $script:Ui = @{}
-foreach ($name in 'PathBox','BrowseButton','CheckButton','InstallButton','RestoreButton','LogBox','StatusDot','StatusTitle','StatusDetail','VersionLabel','ActivityLabel') {
+foreach ($name in 'PathBox','BrowseButton','CheckButton','InstallButton','RestoreButton','LogBox','StatusDot','StatusTitle','StatusDetail','VersionLabel','ActivityLabel','ProxyEnabledBox','ProxyUrlBox','LaunchButton') {
     $script:Ui[$name] = $Window.FindName($name)
 }
 $Ui.PathBox.Text = $ClientPath
+
+$script:ProxyConfigFile = Join-Path $env:APPDATA 'Antigravity\proxy-config.json'
+try {
+    if (Test-Path $script:ProxyConfigFile) {
+        $cfg = Get-Content $script:ProxyConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($null -ne $cfg.enabled) { $Ui.ProxyEnabledBox.IsChecked = [bool]$cfg.enabled }
+        if ($cfg.proxyUrl) { $Ui.ProxyUrlBox.Text = [string]$cfg.proxyUrl }
+    } else {
+        $Ui.ProxyEnabledBox.IsChecked = $true
+        $Ui.ProxyUrlBox.Text = 'http://127.0.0.1:7890'
+    }
+} catch {
+    $Ui.ProxyEnabledBox.IsChecked = $true
+    $Ui.ProxyUrlBox.Text = 'http://127.0.0.1:7890'
+}
+
+function Save-ProxyConfig {
+    try {
+        $dir = [IO.Path]::GetDirectoryName($script:ProxyConfigFile)
+        if (-not (Test-Path $dir)) { [void](New-Item $dir -ItemType Directory -Force) }
+        $cfg = @{
+            enabled = [bool]$Ui.ProxyEnabledBox.IsChecked
+            proxyUrl = $Ui.ProxyUrlBox.Text.Trim()
+        }
+        $json = $cfg | ConvertTo-Json
+        [IO.File]::WriteAllText($script:ProxyConfigFile, $json, [Text.Encoding]::UTF8)
+    } catch {
+        Write-Activity ('保存代理配置失败: ' + $_.Exception.Message)
+    }
+}
 
 function Write-Activity([string]$Message) {
     $Ui.LogBox.AppendText(('[' + (Get-Date -Format 'HH:mm:ss') + '] ' + $Message + "`r`n"))
@@ -25,14 +58,30 @@ function Set-Buttons {
     $Ui.PathBox.IsEnabled = $idle
     $Ui.BrowseButton.IsEnabled = $idle
     $Ui.CheckButton.IsEnabled = $idle
-    $Ui.InstallButton.IsEnabled = $idle -and $null -ne $script:LastStatus -and (($script:LastStatus.supported -and -not $script:LastStatus.patched) -or $script:LastStatus.updateAvailable)
-    if ($null -ne $script:LastStatus -and $script:LastStatus.updateAvailable) { $Ui.InstallButton.Content = '更新汉化' } else { $Ui.InstallButton.Content = '安装汉化' }
+    $Ui.ProxyEnabledBox.IsEnabled = $idle
+    $Ui.ProxyUrlBox.IsEnabled = $idle
+
+    $canInstall = $idle -and $null -ne $script:LastStatus -and (($script:LastStatus.supported -and -not $script:LastStatus.patched) -or $script:LastStatus.updateAvailable)
+    $Ui.InstallButton.IsEnabled = $canInstall
+    if ($null -ne $script:LastStatus -and $script:LastStatus.updateAvailable) {
+        $Ui.InstallButton.Content = '更新补丁'
+    } else {
+        $Ui.InstallButton.Content = '仅安装补丁'
+    }
     $Ui.RestoreButton.IsEnabled = $idle -and $null -ne $script:LastStatus -and $script:LastStatus.patched
+
+    $Ui.LaunchButton.IsEnabled = $idle -and $null -ne $script:LastStatus -and ($script:LastStatus.supported -or $script:LastStatus.patched)
+    if ($null -ne $script:LastStatus -and ($script:LastStatus.updateAvailable -or (-not $script:LastStatus.patched -and $script:LastStatus.supported))) {
+        $Ui.LaunchButton.Content = '更新补丁并启动'
+    } else {
+        $Ui.LaunchButton.Content = '一键启动 Antigravity'
+    }
 }
 
 function Show-Failure([string]$Message) {
     $script:LastError = $Message
     $script:LastStatus = $null
+    $script:PendingLaunch = $false
     $Ui.StatusTitle.Text = '暂时无法操作'
     $Ui.StatusDot.Fill = '#B35B43'
     $Ui.StatusDetail.Text = $Message
@@ -43,8 +92,95 @@ function Show-Failure([string]$Message) {
 }
 
 function Quote-ProcessArgument([string]$Value) {
-    # Windows CreateProcess quoting; no cmd.exe or PowerShell evaluation of user paths.
     return '"' + [regex]::Replace([regex]::Replace($Value, '(\\*)"', '$1$1\"'), '(\\+)$', '$1$1') + '"'
+}
+
+function Get-AntigravityExe {
+    $candidate = $Ui.PathBox.Text.Trim()
+    if ($candidate) {
+        if ([IO.Path]::GetFileName($candidate) -ieq 'Antigravity.exe' -and (Test-Path $candidate)) {
+            return (Resolve-Path $candidate).Path
+        }
+        if (Test-Path $candidate) {
+            $probe = Join-Path $candidate 'Antigravity.exe'
+            if (Test-Path $probe) { return (Resolve-Path $probe).Path }
+            $parent = [IO.Path]::GetDirectoryName($candidate)
+            if ([IO.Path]::GetFileName($parent) -ieq 'resources') {
+                $grandParent = [IO.Path]::GetDirectoryName($parent)
+                $probe = Join-Path $grandParent 'Antigravity.exe'
+                if (Test-Path $probe) { return (Resolve-Path $probe).Path }
+            }
+        }
+    }
+    $paths = @(
+        (Join-Path $env:LOCALAPPDATA 'Programs\antigravity\Antigravity.exe'),
+        (Join-Path $env:ProgramFiles 'antigravity\Antigravity.exe')
+    )
+    foreach ($p in $paths) {
+        if (Test-Path $p) { return (Resolve-Path $p).Path }
+    }
+    return $null
+}
+
+function Launch-AntigravityProcess {
+    $exe = Get-AntigravityExe
+    if (-not $exe -or -not (Test-Path $exe)) {
+        Show-Failure '未找到 Antigravity.exe 启动文件，请检查安装路径。'
+        return
+    }
+    Save-ProxyConfig
+    $proxyEnabled = [bool]$Ui.ProxyEnabledBox.IsChecked
+    $proxyUrl = $Ui.ProxyUrlBox.Text.Trim()
+    Write-Activity ('准备拉起 Antigravity: ' + $exe)
+    $psi = New-Object Diagnostics.ProcessStartInfo
+    $psi.FileName = $exe
+    $psi.WorkingDirectory = [IO.Path]::GetDirectoryName($exe)
+    $psi.UseShellExecute = $false
+    if ($proxyEnabled -and $proxyUrl) {
+        $psi.Arguments = "--proxy-server=$proxyUrl"
+        $psi.EnvironmentVariables['HTTP_PROXY'] = $proxyUrl
+        $psi.EnvironmentVariables['HTTPS_PROXY'] = $proxyUrl
+        $psi.EnvironmentVariables['ALL_PROXY'] = $proxyUrl
+        $psi.EnvironmentVariables['http_proxy'] = $proxyUrl
+        $psi.EnvironmentVariables['https_proxy'] = $proxyUrl
+        $psi.EnvironmentVariables['all_proxy'] = $proxyUrl
+        Write-Activity ('已注入网络代理: ' + $proxyUrl)
+    }
+    try {
+        [void][Diagnostics.Process]::Start($psi)
+        Write-Activity 'Antigravity 客户端已成功启动！'
+        $Ui.ActivityLabel.Text = '已启动客户端'
+    } catch {
+        Show-Failure ('启动客户端失败: ' + $_.Exception.Message)
+    }
+}
+
+function Start-Launch {
+    if ($null -ne $script:Job) { return }
+    Save-ProxyConfig
+    $running = Get-Process -Name 'Antigravity' -ErrorAction SilentlyContinue
+    if ($running) {
+        $ans = [System.Windows.MessageBox]::Show($Window, "检测到 Antigravity 正在运行。`n`n是否关闭当前进程以应用最新配置并重新启动？", '重新启动确认', [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
+        if ($ans -ne [System.Windows.MessageBoxResult]::Yes) {
+            Write-Activity '已取消一键启动。'
+            return
+        }
+        Write-Activity '正在关闭运行中的 Antigravity 进程...'
+        $running | Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 800
+    }
+    if ($null -eq $script:LastStatus) {
+        $script:PendingLaunch = $true
+        Start-Operation 'status'
+        return
+    }
+    if ((-not $script:LastStatus.patched -and $script:LastStatus.supported) -or $script:LastStatus.updateAvailable) {
+        Write-Activity '检测到客户端未安装补丁或有新版本，正在自动应用补丁...'
+        $script:PendingLaunch = $true
+        Start-Operation 'install'
+        return
+    }
+    Launch-AntigravityProcess
 }
 
 function Start-Operation([ValidateSet('status','check','install','restore')][string]$Command) {
@@ -53,6 +189,8 @@ function Start-Operation([ValidateSet('status','check','install','restore')][str
     try {
         $localNode = Join-Path $script:ProjectRoot 'node.exe'
         if (-not (Test-Path $localNode)) { $localNode = Join-Path $script:ProjectRoot 'bin\node.exe' }
+        if (-not (Test-Path $localNode) -and (Test-Path 'E:\Program Files\Node js\node.exe')) { $localNode = 'E:\Program Files\Node js\node.exe' }
+        if (-not (Test-Path $localNode) -and (Test-Path "$env:ProgramFiles\nodejs\node.exe")) { $localNode = "$env:ProgramFiles\nodejs\node.exe" }
         if (Test-Path $localNode) {
             $nodeSource = (Resolve-Path $localNode).Path
         } else {
@@ -105,26 +243,32 @@ function Complete-Operation {
         $result = $stdout | ConvertFrom-Json
         if (-not $result.target -or -not $result.state) { throw '客户端返回了无法识别的结果。' }
         Write-Activity $result.state
+
         if ($job.Command -in 'install','restore') {
+            if ($script:PendingLaunch -and $job.Command -eq 'install') {
+                $script:PendingLaunch = $false
+                Launch-AntigravityProcess
+            }
             Start-Operation 'status'
             return
         }
+
         $script:LastStatus = $result
         $script:UpdatingPath = $true
         try { $Ui.PathBox.Text = $result.target } finally { $script:UpdatingPath = $false }
         $Ui.VersionLabel.Text = '客户端版本 ' + $result.version
         if ($result.patched) {
-            $Ui.StatusTitle.Text = '已启用本地汉化'
-            $Ui.StatusDetail.Text = '恢复备份校验有效。重新打开 Antigravity 即可使用。'
+            $Ui.StatusTitle.Text = '已启用本地汉化与增强特性'
+            $Ui.StatusDetail.Text = '汉化、实时上下文监控、波浪历史游标、窗口记忆及代理配置已就绪。'
             if ($result.updateAvailable) {
-                $Ui.StatusTitle.Text = '有本地新版可以更新'
-                $Ui.StatusDetail.Text = '点击“更新汉化”应用新词库和设置页翻译，原始恢复备份会保留。'
+                $Ui.StatusTitle.Text = '有本地新版补丁可以更新'
+                $Ui.StatusDetail.Text = '点击「一键启动」或「更新补丁」应用新特性，原始备份会自动保留。'
             }
-            $Ui.StatusDot.Fill = '#177A70'
+            $Ui.StatusDot.Fill = '#4D6BFE'
         } elseif ($result.supported) {
             $Ui.StatusTitle.Text = '准备就绪，可以汉化'
-            $Ui.StatusDetail.Text = '版本匹配。安装前会自动备份；恢复英文可还原安装前资源包。'
-            $Ui.StatusDot.Fill = '#177A70'
+            $Ui.StatusDetail.Text = '版本兼容。点击「一键启动」将自动安装全套功能并拉起客户端。'
+            $Ui.StatusDot.Fill = '#4D6BFE'
         } else {
             $Ui.StatusTitle.Text = '当前版本暂不支持'
             $Ui.StatusDetail.Text = $result.state
@@ -132,21 +276,40 @@ function Complete-Operation {
         }
         $Ui.ActivityLabel.Text = '检查完成'
         Set-Buttons
+
+        if ($script:PendingLaunch) {
+            if ((-not $result.patched -and $result.supported) -or $result.updateAvailable) {
+                Write-Activity '正在自动应用最新补丁...'
+                Start-Operation 'install'
+                return
+            } elseif ($result.patched -or $result.supported) {
+                $script:PendingLaunch = $false
+                Launch-AntigravityProcess
+            } else {
+                $script:PendingLaunch = $false
+            }
+        }
     } catch { Show-Failure $_.Exception.Message } finally { $job.Process.Dispose() }
 }
 
 $script:Timer = New-Object Windows.Threading.DispatcherTimer
 $Timer.Interval = [TimeSpan]::FromMilliseconds(100)
 $Timer.Add_Tick({ Complete-Operation })
+
 $Ui.CheckButton.Add_Click({ Start-Operation 'check' })
 $Ui.InstallButton.Add_Click({ Start-Operation 'install' })
 $Ui.RestoreButton.Add_Click({ Start-Operation 'restore' })
+$Ui.LaunchButton.Add_Click({ Start-Launch })
+$Ui.ProxyEnabledBox.Add_Click({ Save-ProxyConfig })
+$Ui.ProxyUrlBox.Add_LostFocus({ Save-ProxyConfig })
+
 $Ui.BrowseButton.Add_Click({
     $dialog = New-Object Microsoft.Win32.OpenFileDialog
     $dialog.Title = '选择 Antigravity.exe 或 app.asar'
     $dialog.Filter = 'Antigravity 客户端|Antigravity.exe;app.asar'
     if ($dialog.ShowDialog($Window)) { $Ui.PathBox.Text = $dialog.FileName; Start-Operation 'status' }
 })
+
 $Ui.PathBox.Add_TextChanged({
     if ($script:UpdatingPath) { return }
     $script:LastStatus = $null
@@ -156,12 +319,18 @@ $Ui.PathBox.Add_TextChanged({
     $Ui.VersionLabel.Text = '等待检查'
     Set-Buttons
 })
+
 $Window.Add_Closing({
     param($sender, $eventArgs)
     if ($null -ne $script:Job) { $eventArgs.Cancel = $true; $Ui.ActivityLabel.Text = '请等待当前操作完成后关闭' }
+    Save-ProxyConfig
 })
 $Window.Add_Closed({ $script:Timer.Stop() })
-$Window.Add_ContentRendered({ Start-Operation 'status' })
-Write-Activity '窗口已打开。状态检查不会安装或恢复补丁。'
+$Window.Add_ContentRendered({
+    if ($Launch) { $script:PendingLaunch = $true }
+    Start-Operation 'status'
+})
+
+Write-Activity '窗口已就绪。状态检查不会安装或恢复补丁。'
 
 if ($MyInvocation.InvocationName -ne '.') { [void]$Window.ShowDialog() }

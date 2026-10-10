@@ -152,3 +152,20 @@ test('unknown native menu entry blocks installation before backup writes', async
   assert.deepEqual(fs.readFileSync(target), changed);
   assert.equal(fs.existsSync(path.join(dir, '.antigravity-local-zh')), false);
 });
+
+test('adaptive compatibility allows minor 2.x updates with valid structure', async t => {
+  const { target, dir, before } = await fixture(t);
+  const adaptivePreload = Buffer.from('"use strict";\nconst { contextBridge, ipcRenderer } = require("electron");\n// future 2.20 code\n');
+  const pkg = Buffer.from(JSON.stringify({ name: 'antigravity', productName: 'Antigravity', version: '2.20.0', main: 'dist/main.js' }));
+  let modified = asar.replace(before, 'dist/preload.js', adaptivePreload);
+  modified = asar.replace(modified, 'package.json', pkg);
+  fs.writeFileSync(target, modified);
+  const st = patcher.status(target);
+  assert.equal(st.supported, true);
+  assert.equal(st.adaptive, true);
+  assert.equal(patcher.change(target, 'install', stopped).changed, true);
+  assert.equal(patcher.status(target).patched, true);
+  assert.equal(patcher.change(target, 'restore', stopped).changed, true);
+  assert.deepEqual(fs.readFileSync(target), modified);
+});
+

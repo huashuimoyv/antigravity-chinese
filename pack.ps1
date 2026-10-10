@@ -38,7 +38,7 @@ if (Test-Path $tmpPortable) { Remove-Item $tmpPortable -Recurse }
 New-Item $tmpPortable -ItemType Directory | Out-Null
 
 $portableFiles = @(
-    'cli.js', 'gui.ps1', 'gui.cmd', 'install.cmd', 'restore.cmd',
+    'cli.js', 'gui.ps1', 'gui.cmd', '一键启动.cmd', 'install.cmd', 'restore.cmd',
     '启动汉化工具.exe', 'package.json', 'README.md', 'LICENSE'
 )
 foreach ($f in $portableFiles) {

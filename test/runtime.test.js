@@ -83,3 +83,89 @@ test('translates extended controls and auxiliary navigation items', async t => {
   assert.equal(w.document.querySelector('textarea').placeholder, '描述你遇到的问题…');
   assert.equal(w.document.querySelector('textarea').value, 'Custom code');
 });
+
+test('mounts Codex wave turn scrubber and summary popover on conversation turns', async t => {
+  const chatHtml = `
+    <div style="overflow-y:auto;">
+      <div class="scroll-mt-4">
+        <div role="article" aria-label="User message">
+          <div data-testid="user-input-step"><div data-quotable="true">继续直到5小时额度用完</div></div>
+        </div>
+        <div role="article" aria-label="Agent response">
+          <div data-testid="planner-response-text">
+            <p>5 小时额度已达 100%，已停止全部开发任务。</p>
+            <p>本轮补了缓存状态与到期刷新逻辑，其他并入下轮。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  const w = await page(t, chatHtml);
+  const track = w.document.getElementById('ag-codex-wave-scrubber');
+  const pop = w.document.getElementById('ag-codex-wave-popover');
+  assert.ok(track, 'wave scrubber track should be mounted');
+  assert.ok(pop, 'wave summary popover should be mounted');
+  assert.equal(pop.querySelector('[data-wave-role="title"]').textContent, '继续直到5小时额度用完');
+  assert.match(pop.querySelector('[data-wave-role="line1"]').innerHTML, /<strong[^>]*>100%<\/strong>/);
+  assert.match(pop.querySelector('[data-wave-role="line2"]').textContent, /本轮补了缓存状态与到期刷新逻辑/);
+  const bmBtn = pop.querySelector('[data-wave-action="bookmark"]');
+  bmBtn.click();
+  assert.equal(pop.querySelector('[data-wave-role="bm-svg"]').getAttribute('fill'), 'currentColor');
+  track.dispatchEvent(new w.MouseEvent('mouseenter', { clientY: 120, bubbles: true }));
+  assert.equal(pop.style.display, 'block');
+  assert.equal(pop.style.opacity, '1');
+});
+
+test('mounts titlebar context monitor widget and renders token breakdown and cache ratio', async t => {
+  const html = `
+    <html>
+      <head></head>
+      <body>
+        <div data-testid="conversation-row-sidebar" data-selected="true" data-cascade-id="test-cid-101"></div>
+        <header>
+          <div>
+            <button data-testid="titlebar-more-actions">More</button>
+          </div>
+        </header>
+      </body>
+    </html>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:12345/' });
+  t.after(() => dom.window.close());
+  dom.window.__APP_CONFIG__ = { csrfToken: '12345678-1234-1234-1234-123456789abc' };
+  dom.window.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      generatorMetadata: [{
+        plannerConfig: { modelName: 'gemini-2.0-pro' },
+        chatModel: {
+          usage: { inputTokens: 5000, cacheReadTokens: 15000, outputTokens: 1200, thinkingOutputTokens: 300 },
+          chatStartMetadata: {
+            contextWindowMetadata: {
+              maxContextTokens: 256000,
+              estimatedTokensUsed: 20000,
+              tokenBreakdown: {
+                groups: [
+                  { name: 'System Prompt', type: 'TOKEN_TYPE_SYSTEM_PROMPT', numTokens: 8000 },
+                  { name: 'Tools', type: 'TOKEN_TYPE_TOOLS', numTokens: 4000 },
+                  { name: 'Messages', type: 'TOKEN_TYPE_MESSAGES', numTokens: 8000 }
+                ]
+              }
+            }
+          }
+        }
+      }]
+    })
+  });
+
+  runtime(dom.window, dictionary);
+  await delay();
+  await delay();
+
+  const bar = dom.window.document.getElementById('ag-titlebar-context-bar');
+  assert.ok(bar, 'context monitor widget should be mounted');
+  assert.match(bar.textContent, /20\.0k \/ 256k/);
+  assert.match(bar.textContent, /缓存 75%/);
+});
+
+
