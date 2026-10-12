@@ -569,6 +569,7 @@ function localize(window, dictionary) {
 
     const findScrollParent = el => {
       for (let p = el ? el.parentElement : null; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+        if (p.style && (p.style.overflowY === 'auto' || p.style.overflowY === 'scroll')) return p;
         const st = window.getComputedStyle ? window.getComputedStyle(p) : null;
         if (st && (st.overflowY === 'auto' || st.overflowY === 'scroll' || st.overflowY === 'overlay')) {
           return p;
@@ -597,19 +598,39 @@ function localize(window, dictionary) {
       isBackfilling = true;
       try {
         let clicks = 0;
-        const maxClicks = 30;
+        const maxClicks = 25;
         while (clicks < maxClicks) {
           const btn = getLoadOlderButton();
           if (!btn) break;
           const turnEls = document.querySelectorAll('.scroll-mt-4');
-          const host = findScrollParent(turnEls[0] || btn);
-          const distFromBottom = host ? (host.scrollHeight - host.scrollTop) : null;
+          const host = findScrollParent(turnEls[0] || btn) || (btn ? btn.parentElement : null) || document.body;
 
-          btn.click();
+          const beforeH = host.scrollHeight;
+          const wasAtBottom = (host.scrollHeight - host.scrollTop - host.clientHeight) < 60;
+          const distFromBottom = host.scrollHeight - host.scrollTop;
+
           clicks++;
-          await new Promise(r => window.setTimeout(r, 220));
 
-          if (host && distFromBottom !== null) {
+          await new Promise(resolve => {
+            let t;
+            if (typeof window.MutationObserver === 'function') {
+              const obs = new window.MutationObserver(() => {
+                obs.disconnect();
+                window.clearTimeout(t);
+                resolve();
+              });
+              obs.observe(host, { childList: true, subtree: true });
+              btn.click();
+              t = window.setTimeout(() => { obs.disconnect(); resolve(); }, 600);
+            } else {
+              btn.click();
+              window.setTimeout(resolve, 200);
+            }
+          });
+
+          if (wasAtBottom) {
+            host.scrollTop = host.scrollHeight;
+          } else {
             host.scrollTop = host.scrollHeight - distFromBottom;
           }
           syncWaveScrubber();
@@ -997,10 +1018,6 @@ function localize(window, dictionary) {
     };
 
     const syncWaveScrubber = () => {
-      if (getLoadOlderButton() && !isBackfilling) {
-        autoBackfillEarlierTurns();
-      }
-
       const nextItems = collectTurnItems();
       if (nextItems.length === 0) {
         const existingTrack = document.getElementById('ag-codex-wave-scrubber');
@@ -1073,6 +1090,7 @@ function localize(window, dictionary) {
     };
 
     syncWaveScrubber();
+    autoBackfillEarlierTurns();
     if (window.__AG_WAVE_TIMER__) window.clearInterval(window.__AG_WAVE_TIMER__);
     window.__AG_WAVE_TIMER__ = window.setInterval(syncWaveScrubber, 1500);
     if (window.__AG_WAVE_TIMER__ && typeof window.__AG_WAVE_TIMER__.unref === 'function') {
@@ -1085,13 +1103,6 @@ function localize(window, dictionary) {
         autoBackfillEarlierTurns(true);
       }, 120);
     });
-    document.addEventListener('click', () => {
-      window.setTimeout(() => {
-        if (getLoadOlderButton() && !isBackfilling) {
-          autoBackfillEarlierTurns();
-        }
-      }, 150);
-    }, true);
   }
 }
 

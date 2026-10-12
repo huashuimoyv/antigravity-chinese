@@ -118,6 +118,7 @@ test('mounts Codex wave turn scrubber and summary popover on conversation turns'
 
 test('auto-backfills earlier conversation turns and updates wave scrubber ticks when older messages button exists', async t => {
   const chatHtml = `
+    <html><body>
     <div id="container" style="overflow-y:auto;height:500px;">
       <button type="button" aria-label="Load older messages, showing 2 of 10">Load older messages</button>
       <div class="scroll-mt-4">
@@ -129,13 +130,15 @@ test('auto-backfills earlier conversation turns and updates wave scrubber ticks 
         </div>
       </div>
     </div>
+    </body></html>
   `;
-  const w = await page(t, chatHtml);
-  const btn = w.document.querySelector('button[aria-label*="Load older messages"]');
+  const dom = new JSDOM(chatHtml, { url: 'https://127.0.0.1:12345/' });
+  t.after(() => dom.window.close());
+  const btn = dom.window.document.querySelector('button[aria-label*="Load older messages"]');
   let clicked = false;
   btn.addEventListener('click', () => {
     clicked = true;
-    const earlierTurn = w.document.createElement('div');
+    const earlierTurn = dom.window.document.createElement('div');
     earlierTurn.className = 'scroll-mt-4';
     earlierTurn.innerHTML = `
       <div role="article" aria-label="User message">
@@ -149,10 +152,11 @@ test('auto-backfills earlier conversation turns and updates wave scrubber ticks 
     btn.remove();
   });
 
+  runtime(dom.window, dictionary);
   await delay();
-  await new Promise(r => setTimeout(r, 300));
+  await new Promise(r => setTimeout(r, 200));
 
-  const track = w.document.getElementById('ag-codex-wave-scrubber');
+  const track = dom.window.document.getElementById('ag-codex-wave-scrubber');
   assert.ok(track, 'wave scrubber should be mounted');
   const rows = track.querySelectorAll('[data-wave-role="list"] > div');
   assert.ok(clicked, 'load older messages button should be auto-clicked by backfill');
