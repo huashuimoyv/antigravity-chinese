@@ -116,6 +116,49 @@ test('mounts Codex wave turn scrubber and summary popover on conversation turns'
   assert.equal(pop.style.opacity, '1');
 });
 
+test('auto-backfills earlier conversation turns and updates wave scrubber ticks when older messages button exists', async t => {
+  const chatHtml = `
+    <div id="container" style="overflow-y:auto;height:500px;">
+      <button type="button" aria-label="Load older messages, showing 2 of 10">Load older messages</button>
+      <div class="scroll-mt-4">
+        <div role="article" aria-label="User message">
+          <div data-testid="user-input-step"><div data-quotable="true">第二轮输入</div></div>
+        </div>
+        <div role="article" aria-label="Agent response">
+          <div data-testid="planner-response-text"><p>第二轮响应完毕</p></div>
+        </div>
+      </div>
+    </div>
+  `;
+  const w = await page(t, chatHtml);
+  const btn = w.document.querySelector('button[aria-label*="Load older messages"]');
+  let clicked = false;
+  btn.addEventListener('click', () => {
+    clicked = true;
+    const earlierTurn = w.document.createElement('div');
+    earlierTurn.className = 'scroll-mt-4';
+    earlierTurn.innerHTML = `
+      <div role="article" aria-label="User message">
+        <div data-testid="user-input-step"><div data-quotable="true">第一轮历史输入</div></div>
+      </div>
+      <div role="article" aria-label="Agent response">
+        <div data-testid="planner-response-text"><p>第一轮响应完毕</p></div>
+      </div>
+    `;
+    btn.parentNode.insertBefore(earlierTurn, btn.nextSibling);
+    btn.remove();
+  });
+
+  await delay();
+  await new Promise(r => setTimeout(r, 300));
+
+  const track = w.document.getElementById('ag-codex-wave-scrubber');
+  assert.ok(track, 'wave scrubber should be mounted');
+  const rows = track.querySelectorAll('[data-wave-role="list"] > div');
+  assert.ok(clicked, 'load older messages button should be auto-clicked by backfill');
+  assert.equal(rows.length, 2, 'wave scrubber should update to display 2 turns after backfill');
+});
+
 test('mounts titlebar context monitor widget and renders token breakdown and cache ratio', async t => {
   const html = `
     <html>

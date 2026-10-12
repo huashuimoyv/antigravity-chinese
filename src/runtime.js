@@ -557,6 +557,7 @@ function localize(window, dictionary) {
 
     const cleanText = str => String(str || '')
       .replace(/<USER_REQUEST>|<\/USER_REQUEST>/gi, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/^[#*>\-\s]+/, '')
       .replace(/\s+/g, ' ')
       .trim();
@@ -574,6 +575,51 @@ function localize(window, dictionary) {
         }
       }
       return null;
+    };
+
+    const getLoadOlderButton = () => {
+      return Array.from(document.querySelectorAll('button')).find(b => {
+        const txt = ((b.textContent || '') + ' ' + (b.getAttribute('aria-label') || '')).toLowerCase();
+        return (txt.includes('load older messages') || txt.includes('加载更早') || txt.includes('load more'))
+          && b.getAttribute('aria-disabled') !== 'true';
+      });
+    };
+
+    let isBackfilling = false;
+    let lastBackfillUrl = '';
+
+    const autoBackfillEarlierTurns = async (force = false) => {
+      if (isBackfilling) return;
+      const curHref = (window.location && window.location.href) || '';
+      if (!force && lastBackfillUrl === curHref) {
+        if (!getLoadOlderButton()) return;
+      }
+      isBackfilling = true;
+      try {
+        let clicks = 0;
+        const maxClicks = 30;
+        while (clicks < maxClicks) {
+          const btn = getLoadOlderButton();
+          if (!btn) break;
+          const turnEls = document.querySelectorAll('.scroll-mt-4');
+          const host = findScrollParent(turnEls[0] || btn);
+          const distFromBottom = host ? (host.scrollHeight - host.scrollTop) : null;
+
+          btn.click();
+          clicks++;
+          await new Promise(r => window.setTimeout(r, 220));
+
+          if (host && distFromBottom !== null) {
+            host.scrollTop = host.scrollHeight - distFromBottom;
+          }
+          syncWaveScrubber();
+        }
+        lastBackfillUrl = (window.location && window.location.href) || '';
+      } catch {
+        // Safe ignore
+      } finally {
+        isBackfilling = false;
+      }
     };
 
     const extractTurnSummary = (turnEl, fallbackTitle) => {
@@ -661,7 +707,7 @@ function localize(window, dictionary) {
         }
       });
 
-      return result.slice(-32);
+      return result.slice(-120);
     };
 
     const updateViewportActiveTurn = () => {
@@ -702,7 +748,12 @@ function localize(window, dictionary) {
 
     const scrollToItem = idx => {
       const item = items[idx];
-      if (!item || !item.targetEl || !item.targetEl.isConnected) return;
+      if (!item || !item.targetEl || !item.targetEl.isConnected) {
+        if (idx === 0 && getLoadOlderButton()) {
+          autoBackfillEarlierTurns(true);
+        }
+        return;
+      }
       viewportActiveIdx = idx;
       if (typeof item.targetEl.scrollIntoView === 'function') {
         item.targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -946,6 +997,10 @@ function localize(window, dictionary) {
     };
 
     const syncWaveScrubber = () => {
+      if (getLoadOlderButton() && !isBackfilling) {
+        autoBackfillEarlierTurns();
+      }
+
       const nextItems = collectTurnItems();
       if (nextItems.length === 0) {
         const existingTrack = document.getElementById('ag-codex-wave-scrubber');
@@ -960,11 +1015,15 @@ function localize(window, dictionary) {
       pop.style.display = 'block';
       const sig = nextItems.map(it => `${it.key}:${it.title}:${it.line1}:${it.line2}`).join('|');
 
+      const totalItems = nextItems.length;
+      const rowHeight = totalItems > 45 ? 6 : (totalItems > 25 ? 8 : 10);
+      const gap = totalItems > 45 ? '2px' : (totalItems > 25 ? '3px' : (totalItems > 14 ? '4px' : '6px'));
+
       if (sig !== lastSig) {
         lastSig = sig;
         items = nextItems;
         const list = track.querySelector('[data-wave-role="list"]');
-        list.style.gap = items.length > 22 ? '3px' : (items.length > 14 ? '4px' : '6px');
+        list.style.gap = gap;
 
         while (tickRows.length > items.length) {
           const oldRow = tickRows.pop();
@@ -979,7 +1038,7 @@ function localize(window, dictionary) {
         while (tickRows.length < items.length) {
           const idx = tickRows.length;
           const row = document.createElement('div');
-          row.style.cssText = 'display:flex;align-items:center;height:10px;width:30px;';
+          row.style.cssText = `display:flex;align-items:center;height:${rowHeight}px;width:30px;`;
           const bar = document.createElement('div');
           bar.style.cssText = `width:${BASE_W}px;height:1.75px;border-radius:999px;background:var(--foreground,#18181b);opacity:0.3;will-change:width,opacity;`;
           row.appendChild(bar);
@@ -995,6 +1054,10 @@ function localize(window, dictionary) {
           targetW.push(BASE_W);
           curOp.push(0.3);
           targetOp.push(0.3);
+        }
+
+        for (let i = 0; i < tickRows.length; i++) {
+          tickRows[i].style.height = `${rowHeight}px`;
         }
 
         if (activeIdx >= items.length) activeIdx = items.length - 1;
@@ -1016,7 +1079,19 @@ function localize(window, dictionary) {
       window.__AG_WAVE_TIMER__.unref();
     }
     window.addEventListener('resize', syncWaveScrubber);
-    window.addEventListener('popstate', () => window.setTimeout(syncWaveScrubber, 120));
+    window.addEventListener('popstate', () => {
+      window.setTimeout(() => {
+        syncWaveScrubber();
+        autoBackfillEarlierTurns(true);
+      }, 120);
+    });
+    document.addEventListener('click', () => {
+      window.setTimeout(() => {
+        if (getLoadOlderButton() && !isBackfilling) {
+          autoBackfillEarlierTurns();
+        }
+      }, 150);
+    }, true);
   }
 }
 
