@@ -587,60 +587,22 @@ function localize(window, dictionary) {
     };
 
     let isBackfilling = false;
-    let lastBackfillUrl = '';
 
-    const autoBackfillEarlierTurns = async (force = false) => {
+    const backfillIfShort = () => {
       if (isBackfilling) return;
-      const curHref = (window.location && window.location.href) || '';
-      if (!force && lastBackfillUrl === curHref) {
-        if (!getLoadOlderButton()) return;
-      }
+      const btn = getLoadOlderButton();
+      if (!btn) return;
+      const turnEls = document.querySelectorAll('.scroll-mt-4');
+      // Only backfill when entry view has fewer than 2 turns loaded
+      if (turnEls.length > 1) return;
       isBackfilling = true;
       try {
-        let clicks = 0;
-        const maxClicks = 25;
-        while (clicks < maxClicks) {
-          const btn = getLoadOlderButton();
-          if (!btn) break;
-          const turnEls = document.querySelectorAll('.scroll-mt-4');
-          const host = findScrollParent(turnEls[0] || btn) || (btn ? btn.parentElement : null) || document.body;
-
-          const beforeH = host.scrollHeight;
-          const wasAtBottom = (host.scrollHeight - host.scrollTop - host.clientHeight) < 60;
-          const distFromBottom = host.scrollHeight - host.scrollTop;
-
-          clicks++;
-
-          await new Promise(resolve => {
-            let t;
-            if (typeof window.MutationObserver === 'function') {
-              const obs = new window.MutationObserver(() => {
-                obs.disconnect();
-                window.clearTimeout(t);
-                resolve();
-              });
-              obs.observe(host, { childList: true, subtree: true });
-              btn.click();
-              t = window.setTimeout(() => { obs.disconnect(); resolve(); }, 600);
-            } else {
-              btn.click();
-              window.setTimeout(resolve, 200);
-            }
-          });
-
-          if (wasAtBottom) {
-            host.scrollTop = host.scrollHeight;
-          } else {
-            host.scrollTop = host.scrollHeight - distFromBottom;
-          }
-          syncWaveScrubber();
-        }
-        lastBackfillUrl = (window.location && window.location.href) || '';
-      } catch {
-        // Safe ignore
-      } finally {
+        btn.click();
+      } catch {}
+      window.setTimeout(() => {
         isBackfilling = false;
-      }
+        syncWaveScrubber();
+      }, 300);
     };
 
     const extractTurnSummary = (turnEl, fallbackTitle) => {
@@ -680,28 +642,50 @@ function localize(window, dictionary) {
       return { title, line1, line2, respBlocks };
     };
 
+    const sessionCache = new Map();
+
+    const getScrubberCascadeId = () => {
+      try {
+        const sp = new window.URLSearchParams(window.location.search);
+        const focused = sp.get('focused') || sp.get('cascadeId');
+        if (focused && focused !== '_new') return focused.split('+')[0];
+        const m = window.location.pathname.match(/^\/c\/([^/?#]+)/);
+        if (m) {
+          const decoded = decodeURIComponent(m[1]).split('+').filter(Boolean);
+          const first = decoded.find(id => id !== '_new');
+          if (first) return first;
+        }
+      } catch {}
+      const selectedRow = document.querySelector('[data-testid="conversation-row-sidebar"][data-selected="true"]');
+      return selectedRow ? selectedRow.getAttribute('data-cascade-id') : 'default';
+    };
+
     const collectTurnItems = () => {
       const userSteps = Array.from(document.querySelectorAll('[data-testid="user-input-step"], [role="article"][aria-label="User message"]'));
-      if (userSteps.length === 0) return [];
+      const cid = getScrubberCascadeId();
+      let cachedList = sessionCache.get(cid) || [];
+
+      if (userSteps.length === 0) return cachedList.slice(-120);
 
       const seenTurns = new Set();
-      const turnNodes = [];
+      const domTurnNodes = [];
       for (const node of userSteps) {
         const turnEl = node.closest('.scroll-mt-4')
           || (node.matches('[role="article"][aria-label="User message"]') ? node.parentElement : null)
           || node;
         if (!turnEl || seenTurns.has(turnEl)) continue;
         seenTurns.add(turnEl);
-        turnNodes.push(turnEl);
+        domTurnNodes.push(turnEl);
       }
 
-      const result = [];
-      const expandMilestones = turnNodes.length <= 5;
+      const domItems = [];
+      const expandMilestones = domTurnNodes.length <= 5;
 
-      turnNodes.forEach((turnEl, idx) => {
+      domTurnNodes.forEach((turnEl, idx) => {
         const info = extractTurnSummary(turnEl, `对话第 ${idx + 1} 轮`);
-        result.push({
-          key: `turn-${idx}`,
+        const itemKey = `turn-${info.title.slice(0, 20)}`;
+        domItems.push({
+          key: itemKey,
           title: info.title,
           line1: info.line1,
           line2: info.line2,
@@ -716,8 +700,8 @@ function localize(window, dictionary) {
             const subLine1 = truncate(paras[0] || block.textContent || info.line1, 54);
             const subLine2 = truncate(paras[1] || paras[paras.length - 1] || info.line2, 42);
             if (subLine1 && subLine1 !== info.line1) {
-              result.push({
-                key: `turn-${idx}-sub-${sIdx}`,
+              domItems.push({
+                key: `${itemKey}-sub-${sIdx}`,
                 title: subTitle,
                 line1: subLine1,
                 line2: subLine2,
@@ -728,7 +712,45 @@ function localize(window, dictionary) {
         }
       });
 
-      return result.slice(-120);
+      if (cachedList.length === 0) {
+        cachedList = domItems;
+      } else {
+        const keyMap = new Map();
+        for (const item of cachedList) keyMap.set(item.key, item);
+
+        for (const domIt of domItems) {
+          if (keyMap.has(domIt.key)) {
+            const existing = keyMap.get(domIt.key);
+            existing.targetEl = domIt.targetEl;
+            existing.title = domIt.title;
+            existing.line1 = domIt.line1;
+            existing.line2 = domIt.line2;
+          } else {
+            let inserted = false;
+            for (let j = 0; j < cachedList.length; j++) {
+              const c = cachedList[j];
+              if (c.targetEl?.isConnected && domIt.targetEl?.isConnected) {
+                if (typeof domIt.targetEl.compareDocumentPosition === 'function') {
+                  const pos = domIt.targetEl.compareDocumentPosition(c.targetEl);
+                  if (pos & 4) {
+                    cachedList.splice(j, 0, domIt);
+                    keyMap.set(domIt.key, domIt);
+                    inserted = true;
+                    break;
+                  }
+                }
+              }
+            }
+            if (!inserted) {
+              cachedList.push(domIt);
+              keyMap.set(domIt.key, domIt);
+            }
+          }
+        }
+      }
+
+      sessionCache.set(cid, cachedList);
+      return cachedList.slice(-120);
     };
 
     const updateViewportActiveTurn = () => {
@@ -762,22 +784,36 @@ function localize(window, dictionary) {
       const bmSvg = pop.querySelector('[data-wave-role="bm-svg"]');
       if (titleEl) titleEl.textContent = item.title;
       if (line1El) line1El.innerHTML = highlightMetrics(item.line1);
-      if (line2El) line2El.textContent = item.line2;
+      if (line2El) {
+        if (activeIdx === 0 && getLoadOlderButton()) {
+          line2El.textContent = '↑ 上方有更早历史，点击刻度可平滑加载';
+        } else {
+          line2El.textContent = item.line2;
+        }
+      }
       if (bmSvg) bmSvg.setAttribute('fill', isBm ? 'currentColor' : 'none');
       if (bmBtn) bmBtn.style.color = isBm ? '#f59e0b' : 'var(--muted-foreground,#9ca3af)';
     };
 
     const scrollToItem = idx => {
       const item = items[idx];
-      if (!item || !item.targetEl || !item.targetEl.isConnected) {
-        if (idx === 0 && getLoadOlderButton()) {
-          autoBackfillEarlierTurns(true);
-        }
+      if (!item) return;
+      if (item.targetEl && item.targetEl.isConnected && typeof item.targetEl.scrollIntoView === 'function') {
+        viewportActiveIdx = idx;
+        item.targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;
       }
-      viewportActiveIdx = idx;
-      if (typeof item.targetEl.scrollIntoView === 'function') {
-        item.targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const btn = getLoadOlderButton();
+      if (btn) {
+        btn.click();
+        window.setTimeout(() => {
+          syncWaveScrubber();
+          const target = items[idx]?.targetEl;
+          if (target && target.isConnected && typeof target.scrollIntoView === 'function') {
+            viewportActiveIdx = idx;
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 280);
       }
     };
 
@@ -1090,7 +1126,7 @@ function localize(window, dictionary) {
     };
 
     syncWaveScrubber();
-    autoBackfillEarlierTurns();
+    backfillIfShort();
     if (window.__AG_WAVE_TIMER__) window.clearInterval(window.__AG_WAVE_TIMER__);
     window.__AG_WAVE_TIMER__ = window.setInterval(syncWaveScrubber, 1500);
     if (window.__AG_WAVE_TIMER__ && typeof window.__AG_WAVE_TIMER__.unref === 'function') {
@@ -1100,7 +1136,7 @@ function localize(window, dictionary) {
     window.addEventListener('popstate', () => {
       window.setTimeout(() => {
         syncWaveScrubber();
-        autoBackfillEarlierTurns(true);
+        backfillIfShort();
       }, 120);
     });
   }

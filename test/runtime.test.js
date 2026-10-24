@@ -215,4 +215,53 @@ test('mounts titlebar context monitor widget and renders token breakdown and cac
   assert.match(bar.textContent, /缓存 75%/);
 });
 
+test('persists session turn history when earlier turns are virtualized out of DOM', async t => {
+  const html = `
+    <html>
+      <head></head>
+      <body>
+        <div data-testid="conversation-row-sidebar" data-selected="true" data-cascade-id="test-cid-202"></div>
+        <div class="scroll-mt-4" id="turn-1">
+          <div role="article" aria-label="User message">
+            <div data-testid="user-input-step"><div data-quotable="true">用户问题一</div></div>
+          </div>
+          <div role="article" aria-label="Agent response">
+            <div data-testid="planner-response-text"><p>回复一</p></div>
+          </div>
+        </div>
+        <div class="scroll-mt-4" id="turn-2">
+          <div role="article" aria-label="User message">
+            <div data-testid="user-input-step"><div data-quotable="true">用户问题二</div></div>
+          </div>
+          <div role="article" aria-label="Agent response">
+            <div data-testid="planner-response-text"><p>回复二</p></div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:12345/c/test-cid-202' });
+  t.after(() => dom.window.close());
+
+  runtime(dom.window, dictionary);
+  await delay();
+
+  const track = dom.window.document.getElementById('ag-codex-wave-scrubber');
+  assert.ok(track, 'scrubber should be mounted');
+  let rows = track.querySelectorAll('[data-wave-role="list"] > div');
+  assert.equal(rows.length, 2, 'should initially display 2 turns');
+
+  // Simulate virtualization: remove turn-1 from DOM (e.g. scrolled out of view)
+  const turn1 = dom.window.document.getElementById('turn-1');
+  turn1.remove();
+
+  // Trigger DOM mutation / resync
+  dom.window.dispatchEvent(new dom.window.Event('resize'));
+  await delay();
+
+  rows = track.querySelectorAll('[data-wave-role="list"] > div');
+  assert.equal(rows.length, 2, 'should keep both turns in scrubber even when turn-1 is virtualized out of DOM');
+});
+
+
 
