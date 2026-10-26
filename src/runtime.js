@@ -296,20 +296,166 @@ function localize(window, dictionary) {
       }
     };
 
+    let cachedQuota = null;
+    let lastQuotaFetchTime = 0;
+
+    const formatResetCountdown = isoStr => {
+      if (!isoStr) return '';
+      try {
+        const diffMs = new Date(isoStr).getTime() - Date.now();
+        if (diffMs <= 0) return '即将重置';
+        const totalMins = Math.floor(diffMs / 60000);
+        const days = Math.floor(totalMins / 1440);
+        const hours = Math.floor((totalMins % 1440) / 60);
+        const mins = totalMins % 60;
+        if (days > 0) return `${days}d${hours}h`;
+        if (hours > 0) return `${hours}h${mins}m`;
+        return `${mins}m`;
+      } catch {
+        return '';
+      }
+    };
+
+    const parseQuotaGroups = groups => {
+      if (!Array.isArray(groups)) return null;
+      const res = { gemini5h: null, geminiWeekly: null, claude5h: null, claudeWeekly: null, argonWeekly: null };
+      for (const g of groups) {
+        const dName = (g.displayName || '').toLowerCase();
+        for (const b of (g.buckets || [])) {
+          const bId = (b.bucketId || '').toLowerCase();
+          const pct = Math.round((Number(b.remainingFraction) || 0) * 100);
+          const countdown = formatResetCountdown(b.resetTime);
+          const item = { name: b.displayName, pct, countdown, rawFraction: b.remainingFraction };
+          if (dName.includes('gemini 4') || bId.includes('argon')) {
+            res.argonWeekly = item;
+          } else if (dName.includes('claude') || dName.includes('gpt') || bId.includes('3p')) {
+            if (b.window === '5h' || bId.includes('5h')) res.claude5h = item;
+            else res.claudeWeekly = item;
+          } else if (dName.includes('gemini')) {
+            if (b.window === '5h' || bId.includes('5h')) res.gemini5h = item;
+            else res.geminiWeekly = item;
+          }
+        }
+      }
+      return res;
+    };
+
+    const fetchUserQuotaSummary = async (force = false) => {
+      const now = Date.now();
+      if (!force && cachedQuota && (now - lastQuotaFetchTime < 15000)) return cachedQuota;
+      const token = getCsrfToken();
+      if (!token) return cachedQuota;
+      try {
+        const res = await window.fetch('/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Connect-Protocol-Version': '1',
+            'x-codeium-csrf-token': token
+          },
+          body: JSON.stringify({})
+        });
+        if (!res.ok) return cachedQuota;
+        const json = await res.json();
+        const groups = json?.response?.groups || [];
+        cachedQuota = parseQuotaGroups(groups);
+        lastQuotaFetchTime = now;
+        renderAll();
+        return cachedQuota;
+      } catch {
+        return cachedQuota;
+      }
+    };
+
+    const getActiveModelCategory = activeInfo => {
+      const selectorBtn = document.querySelector('[data-testid="model-selector-trigger"]');
+      const selectorText = selectorBtn ? selectorBtn.textContent.trim().toLowerCase() : '';
+      const candidate = (selectorText || activeInfo?.modelName || '').toLowerCase();
+      if (candidate.includes('argon') || candidate.includes('gemini 4') || candidate.includes('gemini-4') || candidate.includes('g4')) {
+        return 'argon';
+      }
+      if (candidate.includes('claude') || candidate.includes('sonnet') || candidate.includes('opus') || candidate.includes('gpt')) {
+        return 'claude';
+      }
+      return 'gemini';
+    };
+
+    const getActiveQuotaBadge = (quota, activeInfo) => {
+      if (!quota) return null;
+      const cat = getActiveModelCategory(activeInfo);
+      let target = null;
+      let prefix = '';
+
+      if (cat === 'argon') {
+        target = quota.argonWeekly || quota.geminiWeekly;
+        prefix = 'G4周额';
+      } else if (cat === 'claude') {
+        target = quota.claude5h || quota.claudeWeekly;
+        prefix = '5h额度';
+      } else {
+        target = quota.gemini5h || quota.geminiWeekly;
+        prefix = '5h额度';
+      }
+
+      if (!target) return null;
+      const pct = target.pct;
+      const color = pct >= 50 ? '#34d399' : (pct >= 20 ? '#fbbf24' : '#f43f5e');
+      return { prefix, pct, countdown: target.countdown, color };
+    };
+
     const getBadgeColors = pct => {
       if (pct >= 75) return { bg: 'rgba(244, 63, 94, 0.16)', fg: '#fb7185', border: 'rgba(244, 63, 94, 0.35)' };
       if (pct >= 50) return { bg: 'rgba(245, 158, 11, 0.15)', fg: '#fbbf24', border: 'rgba(245, 158, 11, 0.32)' };
       return { bg: 'rgba(56, 189, 248, 0.12)', fg: '#38bdf8', border: 'rgba(56, 189, 248, 0.25)' };
     };
 
-    const buildPopoverHtml = info => {
+    const buildPopoverHtml = (info, quota) => {
       if (!info || info.used === 0) return '';
       const max = info.max || 256000;
       const msgColor = info.pct >= 75 ? '#f43f5e' : '#f59e0b';
       const cacheRatio = (info.uncachedIn + info.cachedIn) > 0
         ? Math.round((info.cachedIn / (info.uncachedIn + info.cachedIn)) * 100)
         : 0;
+
+      const qColor = pct => (pct >= 50 ? '#34d399' : (pct >= 20 ? '#fbbf24' : '#f43f5e'));
+
+      const quotaSection = quota ? `
+        <div style="margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(128,128,128,0.18);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-size:12px;font-weight:600;color:var(--foreground,#e5e7eb);">模型用量额度概览</span>
+            <span style="font-size:10px;color:var(--muted-foreground,#9ca3af);">剩余 (重置倒计时)</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;font-size:11px;">
+            ${quota.argonWeekly ? `
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:#c084fc;">Gemini 4 Argon (周额度)</span>
+                <span style="font-variant-numeric:tabular-nums;color:${qColor(quota.argonWeekly.pct)};font-weight:600;">
+                  ${quota.argonWeekly.pct}% ${quota.argonWeekly.countdown ? `<small style="font-size:9.5px;opacity:0.85;font-weight:normal;">(${quota.argonWeekly.countdown})</small>` : ''}
+                </span>
+              </div>
+            ` : ''}
+            ${quota.gemini5h ? `
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:#38bdf8;">Gemini 系列 (5小时)</span>
+                <span style="font-variant-numeric:tabular-nums;color:${qColor(quota.gemini5h.pct)};font-weight:600;">
+                  ${quota.gemini5h.pct}% ${quota.gemini5h.countdown ? `<small style="font-size:9.5px;opacity:0.85;font-weight:normal;">(${quota.gemini5h.countdown})</small>` : ''}
+                </span>
+              </div>
+            ` : ''}
+            ${quota.claude5h ? `
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:#fb923c;">Claude & GPT (5小时)</span>
+                <span style="font-variant-numeric:tabular-nums;color:${qColor(quota.claude5h.pct)};font-weight:600;">
+                  ${quota.claude5h.pct}% ${quota.claude5h.countdown ? `<small style="font-size:9.5px;opacity:0.85;font-weight:normal;">(${quota.claude5h.countdown})</small>` : ''}
+                </span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      ` : '';
+
       return `
+        ${quotaSection}
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid rgba(128,128,128,0.18);">
           <span style="font-size:12px;font-weight:600;color:var(--foreground,#e5e7eb);">当前对话上下文拆解</span>
           <span style="font-size:11px;font-family:monospace;color:var(--muted-foreground,#9ca3af);">${info.modelName}</span>
@@ -365,7 +511,7 @@ function localize(window, dictionary) {
       `;
     };
 
-    const buildTitlebarHtml = info => {
+    const buildTitlebarHtml = (info, quota) => {
       if (!info || info.used === 0) {
         return `<span style="font-size:11px;color:var(--muted-foreground,#9ca3af);">上下文加载中…</span>`;
       }
@@ -379,23 +525,30 @@ function localize(window, dictionary) {
         ? Math.round((info.cachedIn / (info.uncachedIn + info.cachedIn)) * 100)
         : 0;
 
+      const qb = getActiveQuotaBadge(quota, info);
+
       return `
-        <div data-ag-action="toggle-popover" title="点击展开/收起详细上下文拆解" style="display:inline-flex;align-items:center;gap:7px;height:100%;cursor:pointer;">
+        <div data-ag-action="toggle-popover" title="点击展开/收起详细上下文与模型额度" style="display:inline-flex;align-items:center;gap:7px;height:100%;cursor:pointer;">
           <span style="display:inline-flex;align-items:center;gap:4px;font-weight:600;color:${c.fg};font-variant-numeric:tabular-nums;white-space:nowrap;">
             <span style="width:6px;height:6px;border-radius:999px;background:${c.fg};"></span>
             <span>${fmtK(info.used)} / ${fmtK(max)} (${info.pct.toFixed(1)}%)</span>
           </span>
-          <div style="width:76px;height:6px;border-radius:999px;background:rgba(128,128,128,0.2);overflow:hidden;display:flex;flex-shrink:0;">
+          <div style="width:76px;height:6px;border-radius:999px;background:rgba(128,128,128,0.2);overflow:hidden;display:flex;flex-shrink:0;" title="上下文构成：系统 ${(sysPct).toFixed(1)}% / 工具 ${(toolsPct).toFixed(1)}% / 消息 ${(msgPct).toFixed(1)}%">
             <div style="width:${sysPct.toFixed(2)}%;background:#6366f1;height:100%;"></div>
             <div style="width:${toolsPct.toFixed(2)}%;background:#06b6d4;height:100%;"></div>
             <div style="width:${msgPct.toFixed(2)}%;background:${msgColor};height:100%;"></div>
           </div>
           <span style="width:1px;height:12px;background:rgba(128,128,128,0.22);flex-shrink:0;"></span>
-          <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted-foreground,#9ca3af);font-variant-numeric:tabular-nums;white-space:nowrap;">
-            <span><i style="display:inline-block;width:5px;height:5px;border-radius:1px;background:#6366f1;margin-right:2px;vertical-align:middle;"></i>系统 ${fmtK(info.sysTokens)}</span>
-            <span><i style="display:inline-block;width:5px;height:5px;border-radius:1px;background:#06b6d4;margin-right:2px;vertical-align:middle;"></i>工具 ${fmtK(info.toolsTokens)}</span>
-            <span><i style="display:inline-block;width:5px;height:5px;border-radius:1px;background:${msgColor};margin-right:2px;vertical-align:middle;"></i>消息 ${fmtK(info.msgTokens)}</span>
-            ${cacheRatio > 0 ? `<span style="color:#34d399;">缓存 ${cacheRatio}%</span>` : ''}
+          <span style="display:inline-flex;align-items:center;gap:7px;font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;">
+            <span style="color:#34d399;font-weight:500;">缓存 ${cacheRatio}%</span>
+            ${qb ? `
+              <span style="width:1px;height:10px;background:rgba(128,128,128,0.18);flex-shrink:0;"></span>
+              <span style="display:inline-flex;align-items:center;gap:3px;color:${qb.color};font-weight:500;">
+                <span style="width:5px;height:5px;border-radius:999px;background:${qb.color};"></span>
+                <span>${qb.prefix} ${qb.pct}%</span>
+                ${qb.countdown ? `<span style="font-size:10px;opacity:0.85;">(${qb.countdown})</span>` : ''}
+              </span>
+            ` : ''}
           </span>
           <span style="font-size:10px;color:var(--muted-foreground,#9ca3af);">${cardExpanded ? '▴' : '▾'}</span>
         </div>
@@ -421,12 +574,13 @@ function localize(window, dictionary) {
           e.preventDefault();
           e.stopPropagation();
           cardExpanded = !cardExpanded;
+          if (cardExpanded) fetchUserQuotaSummary(true);
           renderAll(true);
         }
       });
     };
 
-    const renderTitlebarWidget = activeInfo => {
+    const renderTitlebarWidget = (activeInfo, quota) => {
       const anchor = document.querySelector('[data-testid="titlebar-more-actions"]') ||
                      document.querySelector('[data-testid="install-editor"]') ||
                      document.querySelector('[data-testid="feedback-button"]') ||
@@ -448,10 +602,12 @@ function localize(window, dictionary) {
         host.insertBefore(bar, anchor);
       }
 
-      const sig = (activeInfo ? activeInfo.sig : 'none') + ':' + (cardExpanded ? '1' : '0');
+      const qb = getActiveQuotaBadge(quota, activeInfo);
+      const qSig = qb ? `${qb.prefix}:${qb.pct}:${qb.countdown}` : 'noq';
+      const sig = (activeInfo ? activeInfo.sig : 'none') + ':' + (cardExpanded ? '1' : '0') + ':' + qSig;
       if (bar.getAttribute('data-sig') !== sig) {
         bar.setAttribute('data-sig', sig);
-        bar.innerHTML = buildTitlebarHtml(activeInfo);
+        bar.innerHTML = buildTitlebarHtml(activeInfo, quota);
       }
 
       let pop = document.getElementById('ag-titlebar-context-popover');
@@ -463,17 +619,17 @@ function localize(window, dictionary) {
         pop = document.createElement('div');
         pop.id = 'ag-titlebar-context-popover';
         pop.setAttribute('data-local-zh', 'off');
-        pop.style.cssText = 'position:fixed;z-index:9999;width:310px;padding:10px 12px;border-radius:8px;border:1px solid var(--border,rgba(128,128,128,0.25));background:var(--card,var(--background,#18181b));box-shadow:0 10px 25px rgba(0,0,0,0.35);user-select:none;app-region:no-drag;-webkit-app-region:no-drag;';
+        pop.style.cssText = 'position:fixed;z-index:9999;width:320px;padding:10px 12px;border-radius:8px;border:1px solid var(--border,rgba(128,128,128,0.25));background:var(--card,var(--background,#18181b));box-shadow:0 10px 25px rgba(0,0,0,0.35);user-select:none;app-region:no-drag;-webkit-app-region:no-drag;';
         document.body.appendChild(pop);
         bindEvents(pop);
       }
       const rect = bar.getBoundingClientRect();
       pop.style.display = 'block';
       pop.style.top = `${Math.round(rect.bottom + 6)}px`;
-      pop.style.left = `${Math.max(8, Math.round(rect.right - 310))}px`;
+      pop.style.left = `${Math.max(8, Math.round(rect.right - 320))}px`;
       if (pop.getAttribute('data-sig') !== sig) {
         pop.setAttribute('data-sig', sig);
-        pop.innerHTML = buildPopoverHtml(activeInfo);
+        pop.innerHTML = buildPopoverHtml(activeInfo, quota);
       }
     };
 
@@ -482,6 +638,9 @@ function localize(window, dictionary) {
       if (activeCid && !cache.has(activeCid)) {
         fetchCascadeContext(activeCid, true);
       }
+      if (!cachedQuota) {
+        fetchUserQuotaSummary();
+      }
       const activeInfo = activeCid ? cache.get(activeCid) : null;
       if (force) {
         const b = document.getElementById('ag-titlebar-context-bar');
@@ -489,7 +648,7 @@ function localize(window, dictionary) {
         const p = document.getElementById('ag-titlebar-context-popover');
         if (p) p.removeAttribute('data-sig');
       }
-      renderTitlebarWidget(activeInfo);
+      renderTitlebarWidget(activeInfo, cachedQuota);
     };
 
     renderAll();
@@ -497,6 +656,7 @@ function localize(window, dictionary) {
     window.__AG_CTX_TIMER__ = window.setInterval(() => {
       const activeCid = getActiveCascadeId();
       if (activeCid) fetchCascadeContext(activeCid, true);
+      fetchUserQuotaSummary();
       renderAll();
     }, 3000);
     window.addEventListener('popstate', () => renderAll());
@@ -598,11 +758,12 @@ function localize(window, dictionary) {
       isBackfilling = true;
       try {
         btn.click();
+        syncWaveScrubber();
       } catch {}
       window.setTimeout(() => {
         isBackfilling = false;
         syncWaveScrubber();
-      }, 300);
+      }, 60);
     };
 
     const extractTurnSummary = (turnEl, fallbackTitle) => {

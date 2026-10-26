@@ -213,6 +213,100 @@ test('mounts titlebar context monitor widget and renders token breakdown and cac
   assert.ok(bar, 'context monitor widget should be mounted');
   assert.match(bar.textContent, /20\.0k \/ 256k/);
   assert.match(bar.textContent, /缓存 75%/);
+  // Verify that redundant textual tokens (系统 xx, 工具 xx, 消息 xx) are eliminated
+  assert.doesNotMatch(bar.textContent, /系统 \d/);
+  assert.doesNotMatch(bar.textContent, /工具 \d/);
+  assert.doesNotMatch(bar.textContent, /消息 \d/);
+});
+
+test('renders model quota limits in titlebar and popover, preferring 5h quota for models and weekly for Gemini 4', async t => {
+  const html = `
+    <html>
+      <head></head>
+      <body>
+        <div data-testid="conversation-row-sidebar" data-selected="true" data-cascade-id="test-cid-102"></div>
+        <button data-testid="model-selector-trigger">Gemini 3.8 Flash 高</button>
+        <header>
+          <div>
+            <button data-testid="titlebar-more-actions">More</button>
+          </div>
+        </header>
+      </body>
+    </html>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:12345/' });
+  t.after(() => dom.window.close());
+  dom.window.__APP_CONFIG__ = { csrfToken: '12345678-1234-1234-1234-123456789abc' };
+  dom.window.fetch = async (url) => {
+    if (url.includes('RetrieveUserQuotaSummary')) {
+      return {
+        ok: true,
+        json: async () => ({
+          response: {
+            groups: [
+              {
+                displayName: 'Gemini Models',
+                buckets: [
+                  { bucketId: 'gemini-weekly', displayName: 'Weekly Limit Remaining', window: 'weekly', remainingFraction: 0.94, resetTime: new Date(Date.now() + 86400000).toISOString() },
+                  { bucketId: 'gemini-5h', displayName: 'Five Hour Limit Remaining', window: '5h', remainingFraction: 0.96, resetTime: new Date(Date.now() + 14400000).toISOString() }
+                ]
+              },
+              {
+                displayName: 'Gemini 4 Argon',
+                buckets: [
+                  { bucketId: 'gemini-argon-wtu-weekly', displayName: 'Gemini 4 Argon Weekly Limit', window: 'weekly', remainingFraction: 0.61, resetTime: new Date(Date.now() + 172800000).toISOString() }
+                ]
+              }
+            ]
+          }
+        })
+      };
+    }
+    return {
+      ok: true,
+      json: async () => ({
+        generatorMetadata: [{
+          plannerConfig: { modelName: 'gemini-3.8-flash' },
+          chatModel: {
+            usage: { inputTokens: 1000, cacheReadTokens: 9000, outputTokens: 200 },
+            chatStartMetadata: {
+              contextWindowMetadata: {
+                maxContextTokens: 256000,
+                estimatedTokensUsed: 10000,
+                tokenBreakdown: { groups: [{ name: 'Messages', type: 'TOKEN_TYPE_MESSAGES', numTokens: 10000 }] }
+              }
+            }
+          }
+        }]
+      })
+    };
+  };
+
+  runtime(dom.window, dictionary);
+  await delay();
+  await delay();
+
+  const bar = dom.window.document.getElementById('ag-titlebar-context-bar');
+  assert.ok(bar, 'context monitor widget should be mounted');
+  assert.match(bar.textContent, /5h额度 96%/, 'should render 5h limit for normal Gemini model');
+  assert.match(bar.textContent, /缓存 90%/, 'should retain cache hit ratio');
+
+  // Switch to Gemini 4 Argon
+  const trigger = dom.window.document.querySelector('[data-testid="model-selector-trigger"]');
+  trigger.textContent = 'Gemini 4 Argon 中';
+
+  // Click widget to open popover and force refresh
+  const toggleBtn = bar.querySelector('[data-ag-action="toggle-popover"]');
+  toggleBtn.click();
+  await delay();
+
+  assert.match(bar.textContent, /G4周额 61%/, 'should switch to weekly limit for Gemini 4 Argon');
+
+  const pop = dom.window.document.getElementById('ag-titlebar-context-popover');
+  assert.ok(pop && pop.style.display !== 'none', 'popover should be visible');
+  assert.match(pop.textContent, /模型用量额度概览/);
+  assert.match(pop.textContent, /Gemini 4 Argon/);
+  assert.match(pop.textContent, /61%/);
 });
 
 test('persists session turn history when earlier turns are virtualized out of DOM', async t => {
