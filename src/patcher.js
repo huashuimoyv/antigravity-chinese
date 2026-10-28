@@ -23,7 +23,8 @@ const SUPPORTED = {
   '2.19.1': 'ed1c35b78075de3fe76e6a504e90c5ba6380a7b6491dc2e819f729911e4b38d2',
   '2.22.0': '81d220de63447d27db95adf67d9711b59ee317b2338ba538f419b354a54b1f60',
   '2.23.0': '81d220de63447d27db95adf67d9711b59ee317b2338ba538f419b354a54b1f60',
-  '2.23.1': '81d220de63447d27db95adf67d9711b59ee317b2338ba538f419b354a54b1f60'
+  '2.23.1': '81d220de63447d27db95adf67d9711b59ee317b2338ba538f419b354a54b1f60',
+  '2.27.0': 'b8b61e3b2237c6f5fb4798b3c116a94dd0530500b304729fc1d1b192b567d46b'
 };
 const VERIFIED_PRELOAD_HASHES = new Set(Object.values(SUPPORTED));
 
@@ -86,7 +87,7 @@ function build(buffer) {
   let output = asar.replace(buffer, PRELOAD, after);
   const menu = asar.read(asar.parse(buffer), MENU);
   const menuSource = menu.toString('utf8');
-  const isKnownMenu = asar.sha256(menu) === MENU_HASH;
+  const isKnownMenu = asar.sha256(menu) === MENU_HASH || asar.sha256(menu) === '908318fecf7b99c1ae26dbf25ef9cbf05221ebec04f20bca81d059baa337e186';
   const isAdaptiveMenu = menuSource.includes('setupApplicationMenu') || (menuSource.includes('Menu') && menuSource.includes('exports'));
   if (!isKnownMenu && !isAdaptiveMenu) throw new Error('未审核的原生菜单入口，拒绝写入');
   const menuAfter = Buffer.concat([menu, Buffer.from(`\n;/* ${MARKER}_MENU */\n(${menuRuntime.toString()})(exports, require('electron'), ${JSON.stringify(dictionary)});\n`)]);
@@ -207,8 +208,9 @@ function change(target, action, guard = assertStopped) {
       const originalHash = asar.sha256(original);
       keepBackup(path.join(dir, `${originalHash}.asar`), original);
       const hash = asar.sha256(after);
+      const pkg = require('../package.json');
       const record = Buffer.from(JSON.stringify({ schema: 1, original: originalHash, patched: hash,
-        version: info.version, toolVersion: '1.0.0' }, null, 2) + '\n');
+        version: info.version, toolVersion: pkg.version }, null, 2) + '\n');
       keepBackup(path.join(dir, `${hash}.json`), record);
       readBackup(dir, { ...info, hash });
     }
