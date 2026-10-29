@@ -3,13 +3,13 @@
 <div align="center">
 
 **专为 Google 反重力（Antigravity 2.12.2 ~ 2.27.0 及后续微版本）打造的高安全、纯离线、逐字节可还原的 Windows 本地汉化与增强工具套件。**  
-*界面汉化 · 实时上下文监控 · Codex 风格波浪游标 · 窗口尺寸记忆 · 网络代理注入 · 一键更新启动 · 30 项全自动化测试*
+*界面汉化 · 实时上下文监控 · 模型额度智能联动 · 窗口尺寸记忆 · 网络代理注入 · 一键更新启动 · 28 项全自动化测试*
 
 [![Release](https://img.shields.io/github/v/release/huashuimoyv/antigravity-chinese?label=Release&color=blue&logo=github)](https://github.com/huashuimoyv/antigravity-chinese/releases)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.12-339933?logo=node.js)](https://nodejs.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?logo=windows)](https://www.microsoft.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-30%20Passed-brightgreen)](test/)
+[![Tests](https://img.shields.io/badge/Tests-28%20Passed-brightgreen)](test/)
 
 [📥 立即下载便携版 (Releases)](https://github.com/huashuimoyv/antigravity-chinese/releases/latest) · [✨ 方案对比](#-与传统汉化方案的对比) · [🚀 快速上手](#-快速上手) · [🛡️ 安全机制](#️-安全与容灾设计)
 
@@ -31,7 +31,7 @@
 | **ASAR 操作方式** | 全量解包目录后再重打包，易破坏原生依赖 | **非破坏性追加模式**：原数据区零修改，仅尾部追加并重算 4MB 完整性校验分块 |
 | **代码与正文保护** | 粗粒度 DOM 替换，易误翻代码变量与提示词 | **严格的隔离过滤树**：Monaco 代码区、xterm 终端、会话 Markdown 与提示词绝对免触碰 |
 | **版本适应性** | 锁定单一哈希，官方升级后立刻无法启动 | **结构自适应引擎**：支持 2.12.2 ~ 2.22.0，官方更新微版本后自动识别并安全兼容 |
-| **功能整合度** | 仅覆盖常规界面翻译 | **全套增强整合**：界面汉化 + 实时上下文监控 + Codex 波浪游标 + 窗口记忆 + 网络代理 |
+| **功能整合度** | 仅覆盖常规界面翻译 | **全套增强整合**：界面汉化 + 实时上下文监控 + 模型额度联动 + 窗口记忆 + 网络代理 |
 | **日常使用体验** | 升级后补丁被覆盖需要繁琐重新配置 | **一键启动**：内置现代化 WPF 图标工具与脚本，点击即可静默补丁并拉起客户端 |
 | **运行依赖** | 往往需要用户配置复杂环境或联网下载外部脚本 | **零外部依赖**：纯原生无损实现；提供**编译好的独立桌面启动器 EXE**，解压双击直接用 |
 
@@ -40,8 +40,9 @@
 ## 🌟 核心特性整合
 
 - 🌐 **全量界面深度汉化**：精校 650+ 条常用界面文案，深度覆盖设置中心、模型与用量、自定义扩展、外观配色、辅助侧边栏及原生菜单，同时严格隔离 Monaco 代码编辑区与会话正文。
-- 📊 **顶部实时上下文用量监控**：实时展示当前会话 Token 占用及百分比胶囊、系统提示词/工具/消息三色进度条、Prompt 缓存命中率统计，并可一键呼出官方全屏轨迹分析器。
-- 🌊 **Codex 风格侧边波浪历史游标**：平滑插值动画的侧边波浪游标，鼠标悬浮即时显示当轮思考与回复概要，支持关键节点一键书签标记。
+- 📊 **顶部实时上下文用量监控**：实时展示当前会话 Token 占用及百分比胶囊、三段式彩色进度条、Prompt 缓存命中率统计，并可一键呼出官方全屏轨迹分析器。
+- 🤖 **多模型用量配额智能联动**：接入实时 Quota RPC，动态识别当前模型（Gemini 4 Argon 常驻周额度，普通 Gemini / Claude / GPT 常驻 5 小时额度），点击弹窗一览三大分组配额。
+- 📍 **原生轮次导航全面退让**：Antigravity 新版本现已原生支持侧边对话指示条与平滑跳转，插件已完全移除自定义刻度逻辑，彻底避免 DOM 覆盖与滚动冲突。
 - 🪟 **窗口尺寸记忆与黄金预设**：初次启动自动居中呈现舒适的 `1332 × 784` 窗口，日常拖拽或最大化自动持久化记忆，重启不再被打回原形。
 - ⚡ **本地网络代理无缝注入**：图形界面提供代理开关（默认支持 `127.0.0.1:7890`），启动时注入 Chromium 网络参数、环境变量与 Electron 会话，确保大模型后台通信流畅稳定。
 - 🚀 **官方升级自适应与一键拉起**：即使官方静默升级覆盖了 `app.asar`，点击「一键启动 Antigravity」即可全自动静默补丁并直接启动客户端。
@@ -107,7 +108,7 @@ node cli.js restore --path "D:\Apps\Antigravity\resources\app.asar"
 项目内置完整的自动化测试套件（使用 Node.js 原生 Test Runner）：
 
 ```powershell
-# 运行全部 28 项自动化测试（涵盖 ASAR 规范互认、自适应兼容、上下文挂载、波浪游标、代理注入、DOM 保护及容灾恢复）
+# 运行全部 28 项自动化测试（涵盖 ASAR 规范互认、自适应兼容、上下文挂载、模型额度联动、代理注入、DOM 保护及容灾恢复）
 node --test
 ```
 
