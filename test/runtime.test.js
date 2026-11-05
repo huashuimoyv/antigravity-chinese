@@ -230,5 +230,54 @@ test('renders model quota limits in titlebar and popover, preferring 5h quota fo
   assert.match(pop.textContent, /61%/);
 });
 
+test('automatically localizes English sidebar conversation titles to Chinese via RPC', async t => {
+  const html = `
+    <html>
+      <head></head>
+      <body>
+        <div data-testid="conversation-row-sidebar" data-cascade-id="test-cid-888">
+          <span>Graduation Recommendation Form Awards And Certificates</span>
+          <time>2d</time>
+        </div>
+      </body>
+    </html>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:12345/' });
+  t.after(() => dom.window.close());
+  dom.window.__APP_CONFIG__ = { csrfToken: 'test-csrf-token-12345' };
+
+  let updatedTitle = '';
+  dom.window.fetch = async (url, options) => {
+    if (url.includes('GetCascadeTrajectorySteps')) {
+      return {
+        ok: true,
+        json: async () => ({
+          steps: [{
+            userInput: {
+              userResponse: '<USER_REQUEST>\n毕业生推荐表里的奖项和证书可以写什么\n</USER_REQUEST>'
+            }
+          }]
+        })
+      };
+    }
+    if (url.includes('UpdateConversationAnnotations')) {
+      const payload = JSON.parse(options.body);
+      updatedTitle = payload?.annotations?.title || '';
+      return {
+        ok: true,
+        json: async () => ({})
+      };
+    }
+    return { ok: true, json: async () => ({}) };
+  };
+
+  runtime(dom.window, dictionary);
+  await delay();
+  await delay();
+
+  assert.equal(updatedTitle, '毕业生推荐表里的奖项和证书可以写什么', 'should extract and push Chinese title from user prompt');
+});
+
+
 
 

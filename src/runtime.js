@@ -126,10 +126,91 @@ function localize(window, dictionary) {
       }, 32);
     });
     observer.observe(document.documentElement, options);
+    injectComposerStyles(document);
     startContextMonitor(window, document);
+    startConversationTitleLocalizer(window, document);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
+
+  function injectComposerStyles(document) {
+    if (document.getElementById('ag-center-composer-style')) return;
+    const style = document.createElement('style');
+    style.id = 'ag-center-composer-style';
+    style.setAttribute('data-local-zh', 'off');
+    style.textContent = `
+      [data-testid="home-greeting"] {
+        display: none !important;
+      }
+      div[data-media-drop-scope]:has([data-testid="home-greeting"]) {
+        justify-content: center !important;
+      }
+      div[data-media-drop-scope]:has([data-testid="home-greeting"]) > div:first-child {
+        flex: 0 0 auto !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+      }
+      div[data-media-drop-scope]:has([data-testid="home-greeting"]) > div:last-child {
+        padding-bottom: 0 !important;
+        transform: translateY(-4vh) !important;
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+      }
+      div[data-media-drop-scope]:has([data-testid="home-greeting"]) > div:last-child > div {
+        max-width: 580px !important;
+        width: 100% !important;
+        margin: 0 auto !important;
+      }
+      .surface-composer {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+      }
+      .surface-composer > div.relative:not(.surface-composer-card) {
+        display: none !important;
+      }
+      .surface-composer [data-mention-menu],
+      .surface-composer [role="listbox"],
+      .surface-composer div.absolute,
+      [data-mention-menu],
+      [role="listbox"] {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        z-index: 50 !important;
+      }
+      .surface-composer-card {
+        border: 1px solid var(--border, rgba(128, 128, 128, 0.22)) !important;
+        border-radius: 14px !important;
+        background: var(--card, #fff) !important;
+        box-shadow: none !important;
+        padding: 8px 10px 6px !important;
+        transition: border-color 0.15s ease !important;
+        outline: none !important;
+      }
+      .surface-composer-card:focus-within {
+        border-color: rgba(128, 128, 128, 0.5) !important;
+        box-shadow: none !important;
+        outline: none !important;
+      }
+      code:not(pre code) {
+        color: #059669 !important;
+        background-color: rgba(5, 150, 105, 0.08) !important;
+        border: 1px solid rgba(5, 150, 105, 0.22) !important;
+        border-radius: 5px !important;
+        padding: 1.5px 6px !important;
+        font-weight: 500 !important;
+      }
+    `;
+    const target = document.head || document.documentElement;
+    if (target) target.appendChild(style);
+  }
 
   function startContextMonitor(window, document) {
     if (window.__AG_CTX_MONITOR__) return;
@@ -671,6 +752,210 @@ function localize(window, dictionary) {
       }
       window.setTimeout(() => renderAll(), 120);
     }, true);
+  }
+
+  function startConversationTitleLocalizer(window, document) {
+    if (window.__AG_TITLE_LOCALIZER__) return;
+    if (typeof window.fetch !== 'function') return;
+    window.__AG_TITLE_LOCALIZER__ = true;
+
+    const checkedCids = new Set();
+    const inflightCids = new Set();
+
+    const getCsrfToken = () => {
+      if (window.__APP_CONFIG__ && window.__APP_CONFIG__.csrfToken) return window.__APP_CONFIG__.csrfToken;
+      const scripts = document.scripts ? Array.from(document.scripts).map(s => s.textContent || '').join('\n') : (document.documentElement ? document.documentElement.innerHTML : '');
+      const match = scripts.match(/csrfToken\W+([0-9a-f-]{36})/i);
+      return match ? match[1] : null;
+    };
+
+    const PROPER_NOUNS = [
+      ['Kingdom Come Deliverance 2', '天国拯救2'],
+      ['Kingdom Come Deliverance', '天国拯救'],
+      ['Phantom Blade Zero', '影之刃零'],
+      ['Google Chrome', '谷歌浏览器'],
+      ['Chrome', 'Chrome'],
+      ['Google', 'Google'],
+      ['Gemini', 'Gemini'],
+      ['Antigravity', 'Antigravity'],
+      ['GitHub', 'GitHub'],
+      ['Obsidian', 'Obsidian'],
+      ['Zotero', 'Zotero'],
+      ['Nvidia', 'Nvidia'],
+      ['Ayakaleaf Pro', 'Ayakaleaf Pro'],
+      ['Program Files', 'Program Files'],
+      ['BRAT', 'BRAT'],
+      ['DeepSeek', 'DeepSeek'],
+      ['Claude', 'Claude'],
+      ['WSL2', 'WSL2'],
+      ['WSL', 'WSL'],
+      ['IDM', 'IDM']
+    ];
+
+    const WORD_MAP = [
+      ['Update Highlights', '更新速览'],
+      ['Update', '更新'],
+      ['Highlights', '速览'],
+      ['Authentication Error', '认证错误'],
+      ['Authentication', '认证'],
+      ['Virtual Machine Error', '虚拟机错误'],
+      ['Virtual Machine', '虚拟机'],
+      ['Open Source Project', '开源项目'],
+      ['Open Source', '开源'],
+      ['Repository Analysis', '仓库分析'],
+      ['Repository', '仓库'],
+      ['Overview', '概览'],
+      ['Discussion', '探讨'],
+      ['Issue', '问题排查'],
+      ['Cleanup', '清理'],
+      ['Explanation', '说明'],
+      ['Magnet Link', '磁力链接'],
+      ['First Name', '名字确认'],
+      ['Installation File', '安装文件'],
+      ['Installation', '安装'],
+      ['Student Account Access', '学生账号权限'],
+      ['Student Account', '学生账号'],
+      ['Student Membership', '学生会员'],
+      ['Canceling', '取消'],
+      ['Subscription', '订阅'],
+      ['Roleplay Setup', '角色设定'],
+      ['Roleplay', '角色扮演'],
+      ['Casual Greeting', '日常问候'],
+      ['Initial Greeting', '日常问候'],
+      ['General Greeting', '日常问候'],
+      ['Greeting', '问候'],
+      ['Benefits', '优惠权益'],
+      ['Review', '审核'],
+      ['Email Review', '邮件审核'],
+      ['Connection And Proxy', '网络连接与代理'],
+      ['Connection', '连接'],
+      ['Proxy', '代理'],
+      ['Checking', '检测'],
+      ['Network', '网络'],
+      ['Challenge Ideas', '方案思路'],
+      ['Challenge', '方案'],
+      ['Ideas', '思路'],
+      ['Economic Burden', '经济负担'],
+      ['Awards And Certificates', '奖项与证书'],
+      ['Recommendation Form', '推荐表'],
+      ['Graduation', '毕业'],
+      ['Video Info', '视频信息'],
+      ['Catgirl', '猫娘'],
+      ['Self-Portrait', '自画像'],
+      ['Troubleshooting', '排错'],
+      ['Solution', '解决方案'],
+      ['Configuration', '配置'],
+      ['Settings', '设置'],
+      ['Reverse Engineering', '逆向分析'],
+      ['Built-in', '内置'],
+      ['Computer Use', '电脑操作'],
+      ['Wireless Mouse', '无线鼠标'],
+      ['New Conversation', '新会话'],
+      ['New Chat', '新对话'],
+      ['Starting', '新建']
+    ];
+
+    const translateEnglishTitle = title => {
+      let res = title;
+      for (const [en, zh] of PROPER_NOUNS) {
+        res = res.replace(new RegExp('\\b' + en + '\\b', 'gi'), zh);
+      }
+      for (const [en, zh] of WORD_MAP) {
+        res = res.replace(new RegExp('\\b' + en + '\\b', 'gi'), zh);
+      }
+      res = res.replace(/([\u4e00-\u9fa5])\s+([\u4e00-\u9fa5])/g, '$1$2');
+      res = res.replace(/([\u4e00-\u9fa5])\s+([\u4e00-\u9fa5])/g, '$1$2');
+      return res.trim();
+    };
+
+    const cleanChinesePrompt = prompt => {
+      if (!prompt || !/[\u4e00-\u9fa5]/.test(prompt)) return '';
+      let p = prompt.trim();
+      p = p.replace(/^(请问|帮我|如何|怎么|为什么|你能|帮我看下|这个|一下|请帮我|想问下|诶好神奇，?|神了，?)\s*/g, '');
+      const parts = p.split(/[，。！？\n,!?]/);
+      for (let part of parts) {
+        part = part.trim();
+        if (part.length >= 4) {
+          if (part.length > 18) {
+            part = part.slice(0, 18).replace(/[的一是在有个了]$/, '');
+          }
+          return part;
+        }
+      }
+      return p.slice(0, 16);
+    };
+
+    const inspectAndLocalizeRow = async (row) => {
+      const cid = row.getAttribute('data-cascade-id');
+      if (!cid || cid === '_new' || checkedCids.has(cid) || inflightCids.has(cid)) return;
+
+      const rowText = (row.textContent || '').trim();
+      if (/[\u4e00-\u9fa5]/.test(rowText)) {
+        checkedCids.add(cid);
+        return;
+      }
+
+      const token = getCsrfToken();
+      if (!token) return;
+
+      inflightCids.add(cid);
+      try {
+        const stepRes = await window.fetch('/exa.language_server_pb.LanguageServerService/GetCascadeTrajectorySteps', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Connect-Protocol-Version': '1',
+            'x-codeium-csrf-token': token
+          },
+          body: JSON.stringify({ cascadeId: cid, stepOffset: 0, stepLimit: 1 })
+        });
+        if (!stepRes.ok) return;
+        const stepData = await stepRes.json();
+        const steps = stepData?.steps || [];
+        const rawUser = steps[0]?.userInput?.userResponse || '';
+        const userPrompt = rawUser.replace(/<USER_REQUEST>|<\/USER_REQUEST>/gi, '').replace(/@\[[^\]]+\]/g, '').replace(/https?:\/\/\S+/g, '').trim();
+
+        let newTitle = '';
+        const extracted = cleanChinesePrompt(userPrompt);
+        if (extracted && extracted.length >= 4 && !extracted.startsWith('"') && !extracted.includes(':\\')) {
+          newTitle = extracted;
+        } else {
+          const cleanRowText = rowText.replace(/\b(\d+[smhd]|now)\b/gi, '').trim();
+          newTitle = translateEnglishTitle(cleanRowText);
+        }
+
+        if (newTitle && /[\u4e00-\u9fa5]/.test(newTitle)) {
+          await window.fetch('/exa.language_server_pb.LanguageServerService/UpdateConversationAnnotations', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Connect-Protocol-Version': '1',
+              'x-codeium-csrf-token': token
+            },
+            body: JSON.stringify({
+              cascadeId: cid,
+              annotations: { title: newTitle },
+              mergeAnnotations: true
+            })
+          });
+          checkedCids.add(cid);
+        }
+      } catch (err) {
+        console.error('[ag-title-zh]', err);
+      } finally {
+        inflightCids.delete(cid);
+      }
+    };
+
+    const scanSidebar = () => {
+      const rows = document.querySelectorAll('[data-testid="conversation-row-sidebar"]');
+      for (const row of rows) {
+        inspectAndLocalizeRow(row);
+      }
+    };
+
+    scanSidebar();
+    window.setInterval(scanSidebar, 4000);
   }
 }
 
