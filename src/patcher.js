@@ -24,7 +24,8 @@ const SUPPORTED = {
   '2.22.0': '81d220de63447d27db95adf67d9711b59ee317b2338ba538f419b354a54b1f60',
   '2.23.0': '81d220de63447d27db95adf67d9711b59ee317b2338ba538f419b354a54b1f60',
   '2.23.1': '81d220de63447d27db95adf67d9711b59ee317b2338ba538f419b354a54b1f60',
-  '2.27.0': 'b8b61e3b2237c6f5fb4798b3c116a94dd0530500b304729fc1d1b192b567d46b'
+  '2.27.0': 'b8b61e3b2237c6f5fb4798b3c116a94dd0530500b304729fc1d1b192b567d46b',
+  '2.29.0': '2f4348c24fa6feeba6fef81644603304667b43a446b3887370781e90ec37ca2c'
 };
 const VERIFIED_PRELOAD_HASHES = new Set(Object.values(SUPPORTED));
 
@@ -87,7 +88,12 @@ function build(buffer) {
   let output = asar.replace(buffer, PRELOAD, after);
   const menu = asar.read(asar.parse(buffer), MENU);
   const menuSource = menu.toString('utf8');
-  const isKnownMenu = asar.sha256(menu) === MENU_HASH || asar.sha256(menu) === '908318fecf7b99c1ae26dbf25ef9cbf05221ebec04f20bca81d059baa337e186';
+  const knownMenuHashes = new Set([
+    MENU_HASH,
+    '908318fecf7b99c1ae26dbf25ef9cbf05221ebec04f20bca81d059baa337e186',
+    '5f09ce9cec448c6ffeb30d2c58daf2d671a09ee03c7ebdaf784f1b61754225e8'
+  ]);
+  const isKnownMenu = knownMenuHashes.has(asar.sha256(menu));
   const isAdaptiveMenu = menuSource.includes('setupApplicationMenu') || (menuSource.includes('Menu') && menuSource.includes('exports'));
   if (!isKnownMenu && !isAdaptiveMenu) throw new Error('未审核的原生菜单入口，拒绝写入');
   const menuAfter = Buffer.concat([menu, Buffer.from(`\n;/* ${MARKER}_MENU */\n(${menuRuntime.toString()})(exports, require('electron'), ${JSON.stringify(dictionary)});\n`)]);
