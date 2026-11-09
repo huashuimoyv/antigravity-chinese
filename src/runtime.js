@@ -27,6 +27,18 @@ function localize(window, dictionary) {
   // Recognize a concrete combination of settings navigation and content, never body.
   function discoverPanels() {
     if (settingsPanel?.isConnected) return;
+    const modal = document.querySelector('.settings-modal-container, [data-testid^="settings-nav-item-"]');
+    if (modal) {
+      let root = modal.closest('.settings-modal-container') || modal.parentElement;
+      while (root && root.parentElement && root.parentElement !== document.body && !root.matches('.settings-modal-container')) {
+        root = root.parentElement;
+      }
+      if (root && root !== document.body && root !== document.documentElement) {
+        panels.add(root);
+        settingsPanel = root;
+        return;
+      }
+    }
     const walker = document.createTreeWalker(document.body || document.documentElement, 4);
     const anchors = [
       'Configure agent execution, queued message delivery, and permissions.',
@@ -39,8 +51,8 @@ function localize(window, dictionary) {
       if ((!anchors.includes(value) && !navigationAnchor) || !eligible(text.parentElement)) continue;
       for (let parent = text.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
         const content = parent.textContent;
-        if (['Application', 'Customizations', 'Browser'].every(key =>
-          content.includes(key) || content.includes(dictionary[key]))) {
+        if (['Application', 'Customizations', 'Browser', 'Appearance', 'Models'].some(key =>
+          content.includes(key) || (dictionary[key] && content.includes(dictionary[key])))) {
           const panel = navigationAnchor ? parent.parentElement : parent;
           if (panel && panel !== document.body && panel !== document.documentElement) {
             panels.add(panel);
@@ -55,7 +67,7 @@ function localize(window, dictionary) {
   function inPanel(element) {
     for (let parent = element; parent; parent = parent.parentElement) {
       if (panels.has(parent)) return true;
-      if (parent.matches('dialog,[role="dialog"],[aria-modal="true"]')) return true;
+      if (parent.matches('dialog,[role="dialog"],[aria-modal="true"],.settings-modal-container,[class*="settings-modal"]')) return true;
     }
     return false;
   }
@@ -200,9 +212,9 @@ function localize(window, dictionary) {
         outline: none !important;
       }
       code:not(pre code) {
-        color: #059669 !important;
-        background-color: rgba(5, 150, 105, 0.08) !important;
-        border: 1px solid rgba(5, 150, 105, 0.22) !important;
+        color: #7C3AED !important;
+        background-color: rgba(124, 58, 237, 0.08) !important;
+        border: 1px solid rgba(124, 58, 237, 0.22) !important;
         border-radius: 5px !important;
         padding: 1.5px 6px !important;
         font-weight: 500 !important;

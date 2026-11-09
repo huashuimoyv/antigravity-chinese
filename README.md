@@ -3,13 +3,13 @@
 <div align="center">
 
 **专为 Google 反重力（Antigravity 2.12.2 ~ 2.29.0 及后续微版本）打造的高安全、纯离线、逐字节可还原的 Windows 本地汉化与增强工具套件。**  
-*界面深度汉化 · 侧边栏小标题中文守护 · 实时上下文监控 · 模型额度智能联动 · 居中沉浸输入卡片 · 窗口尺寸记忆 · 网络代理注入 · 一键更新启动 · 29 项自动化全测试*
+*界面深度汉化 · 侧边栏小标题中文守护 · 实时上下文监控 · 模型额度智能联动 · 居中沉浸输入卡片 · 窗口尺寸记忆 · 网络代理注入 · 一键更新启动 · 30 项自动化全测试*
 
 [![Release](https://img.shields.io/github/v/release/huashuimoyv/antigravity-chinese?label=Release&color=blue&logo=github)](https://github.com/huashuimoyv/antigravity-chinese/releases)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.12-339933?logo=node.js)](https://nodejs.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?logo=windows)](https://www.microsoft.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-29%20Passed-brightgreen)](test/)
+[![Tests](https://img.shields.io/badge/Tests-30%20Passed-brightgreen)](test/)
 
 [📥 立即下载便携版 (Releases)](https://github.com/huashuimoyv/antigravity-chinese/releases/latest) · [🌟 核心功能一览](#-核心特性全景) · [✨ 方案对比](#-与传统汉化方案的对比) · [🚀 快速上手](#-快速上手) · [🛡️ 安全机制](#️-安全与容灾设计)
 
@@ -75,7 +75,7 @@
 
 ## 📊 与传统汉化方案的对比
 
-| 核心维度 | 传统 / 早期汉化方案 | 本项目 (Antigravity Local ZH v1.0.7) |
+| 核心维度 | 传统 / 早期汉化方案 | 本项目 (Antigravity Local ZH v1.0.8) |
 | :--- | :--- | :--- |
 | **侧边栏小标题** | 频繁生成英文标题，必须每次手动重命名 | **全自动智能中文守卫**：提炼首句中文意图并静默 RPC 写回数据库，永保中文排版 |
 | **还原能力** | 通常无法完全恢复，或重打包后哈希突变 | **逐字节精确还原 (Byte-identical)**，恢复后 SHA-256 与官方原包完全一致 |
@@ -147,7 +147,7 @@ node cli.js restore --path "D:\Apps\Antigravity\resources\app.asar"
 项目内置严谨的自动化测试套件（使用 Node.js 原生 Test Runner）：
 
 ```powershell
-# 运行全部 29 项自动化测试（涵盖 ASAR 规范互认、自适应兼容、侧边栏中文标题自动转换、上下文挂载、模型额度联动、代理注入、DOM 保护及容灾恢复）
+# 运行全部 30 项自动化测试（涵盖 ASAR 规范互认、自适应兼容、侧边栏中文标题自动转换、现代设置面板与内置浏览器汉化、上下文挂载、模型额度联动、代理注入、DOM 保护及容灾恢复）
 npm test
 ```
 

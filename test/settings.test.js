@@ -96,3 +96,67 @@ test('translates global permissions section and popup dropdown options', async t
   assert.equal(options[3].children[1].textContent, '手动自定义各个单独设置。');
 });
 
+test('translates newly added built-in browser and plan review policy settings in modern modal layout', async t => {
+  const html = `
+    <div>Settings</div>
+    <div class="settings-modal-container">
+      <aside>
+        <button data-testid="settings-nav-item-General"><span>General</span></button>
+        <button data-testid="settings-nav-item-App"><span>Application</span></button>
+        <button data-testid="settings-nav-item-Appearance"><span>Appearance</span></button>
+        <button data-testid="settings-nav-item-Shortcuts"><span>Shortcuts</span></button>
+        <button data-testid="settings-nav-item-Notifications"><span>Notifications</span></button>
+        <button data-testid="settings-nav-item-Models"><span>Models</span></button>
+      </aside>
+      <main>
+        <h3>Agent Behavior</h3>
+        <div data-testid="plan-review-policy-row">
+          <span>Plan Review Policy</span>
+          <div data-testid="plan-command-fyi-alert">
+            <span>Type <code>/</code> and select <code>plan</code> to have the agent generate a plan.</span>
+          </div>
+        </div>
+        <div id="defaultLinkOpenTarget">
+          <h3>Built-in Browser</h3>
+          <div>Configure link opening and built-in browser preferences.</div>
+          <div>Open Links In</div>
+          <span>Choose where links open by default when clicked.</span>
+          <button>External Browser</button>
+          <button>Built-in Browser</button>
+        </div>
+        <div id="builtinBrowserDownloadDir">
+          <div>Download Location</div>
+          <span>Folder where files downloaded in the built-in browser are saved.</span>
+          <button>Change…</button>
+        </div>
+        <div>
+          <div>Browsing History</div>
+          <span>Clear visited URLs and autocomplete suggestions from the built-in browser.</span>
+          <button>Clear</button>
+        </div>
+      </main>
+    </div>
+    <nav>
+      <a>Give Feedback</a>
+    </nav>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:1234/' });
+  t.after(() => dom.window.close());
+  runtime(dom.window, dictionary);
+  await pause();
+
+  const doc = dom.window.document;
+  assert.equal(doc.querySelector('[data-testid="plan-review-policy-row"] > span').textContent, '计划审阅策略');
+  assert.equal(doc.querySelector('[data-testid="plan-command-fyi-alert"] span').textContent, '输入 / 并选择 plan 以让智能体生成计划。');
+  assert.equal(doc.querySelector('#defaultLinkOpenTarget h3').textContent, '内置浏览器');
+  assert.equal(doc.querySelector('#defaultLinkOpenTarget > div:nth-of-type(1)').textContent, '配置链接打开方式与内置浏览器偏好设置。');
+  assert.equal(doc.querySelector('#defaultLinkOpenTarget > div:nth-of-type(2)').textContent, '链接打开位置');
+  assert.equal(doc.querySelector('#defaultLinkOpenTarget > span').textContent, '选择点击链接时的默认打开位置。');
+  assert.equal(doc.querySelector('#defaultLinkOpenTarget button:first-of-type').textContent, '外部浏览器');
+  assert.equal(doc.querySelector('#builtinBrowserDownloadDir div').textContent, '下载位置');
+  assert.equal(doc.querySelector('#builtinBrowserDownloadDir span').textContent, '内置浏览器中下载文件的保存目录。');
+  assert.equal(doc.querySelector('#builtinBrowserDownloadDir button').textContent, '更改…');
+  assert.equal(doc.querySelector('nav a').textContent, '提供反馈');
+});
+
+
