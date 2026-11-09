@@ -3,13 +3,13 @@
 <div align="center">
 
 **专为 Google 反重力（Antigravity 2.12.2 ~ 2.29.0 及后续微版本）打造的高安全、纯离线、逐字节可还原的 Windows 本地汉化与增强工具套件。**  
-*界面深度汉化 · 侧边栏小标题中文守护 · 实时上下文监控 · 模型额度智能联动 · 居中沉浸输入卡片 · 窗口尺寸记忆 · 网络代理注入 · 一键更新启动 · 30 项自动化全测试*
+*界面深度汉化 · 侧边栏小标题中文守护 · 实时上下文监控 · 模型额度智能联动 · 居中沉浸输入卡片 · 窗口尺寸记忆 · 网络代理注入 · 一键更新启动 · 31 项自动化全测试*
 
 [![Release](https://img.shields.io/github/v/release/huashuimoyv/antigravity-chinese?label=Release&color=blue&logo=github)](https://github.com/huashuimoyv/antigravity-chinese/releases)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.12-339933?logo=node.js)](https://nodejs.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?logo=windows)](https://www.microsoft.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-30%20Passed-brightgreen)](test/)
+[![Tests](https://img.shields.io/badge/Tests-31%20Passed-brightgreen)](test/)
 
 [📥 立即下载便携版 (Releases)](https://github.com/huashuimoyv/antigravity-chinese/releases/latest) · [🌟 核心功能一览](#-核心特性全景) · [✨ 方案对比](#-与传统汉化方案的对比) · [🚀 快速上手](#-快速上手) · [🛡️ 安全机制](#️-安全与容灾设计)
 
@@ -75,14 +75,14 @@
 
 ## 📊 与传统汉化方案的对比
 
-| 核心维度 | 传统 / 早期汉化方案 | 本项目 (Antigravity Local ZH v1.0.8) |
+| 核心维度 | 传统 / 早期汉化方案 | 本项目 (Antigravity Local ZH v1.0.9) |
 | :--- | :--- | :--- |
 | **侧边栏小标题** | 频繁生成英文标题，必须每次手动重命名 | **全自动智能中文守卫**：提炼首句中文意图并静默 RPC 写回数据库，永保中文排版 |
 | **还原能力** | 通常无法完全恢复，或重打包后哈希突变 | **逐字节精确还原 (Byte-identical)**，恢复后 SHA-256 与官方原包完全一致 |
 | **ASAR 操作方式** | 全量解包目录后再重打包，易破坏原生依赖 | **非破坏性追加模式**：原数据区零修改，仅尾部追加并重算 4MB 完整性校验分块 |
 | **代码与正文保护** | 粗粒度 DOM 替换，易误翻代码变量与提示词 | **严格的隔离过滤树**：Monaco 代码区、xterm 终端、会话 Markdown 与提示词绝对免触碰 |
 | **版本适应性** | 锁定单一哈希，官方升级后立刻报错或闪退 | **结构自适应引擎**：全面支持 2.12.2 ~ 2.29.0+，官方升级微版本后自动识别并安全兼容 |
-| **功能整合度** | 仅覆盖常规界面浅层翻译 | **九大核心增强整合**：界面汉化 + 侧边栏中文守卫 + 上下文监控 + 模型额度 + 居中布局 + 窗口记忆 + 网络代理 |
+| **功能整合度** | 仅覆盖常规界面浅层翻译 | **十项核心增强整合**：界面汉化 + 侧边栏中文守卫 + 语音模式汉化 + 自定义项明细 + 上下文监控 + 模型额度 + 居中布局 + 窗口记忆 + 网络代理 |
 | **日常使用体验** | 升级后补丁被覆盖需要繁琐重新配置 | **一键启动**：内置现代化桌面工具与脚本，点击即可静默补丁并直接拉起客户端 |
 | **运行依赖** | 往往需要用户配置复杂环境或联网下载外部脚本 | **零外部依赖**：纯原生无损实现；提供**编译好的独立桌面启动器 EXE**，解压双击直接用 |
 
@@ -98,7 +98,7 @@
 
 ### 方案 A：便携桌面版（推荐所有用户）
 
-1. 前往 [Releases 页面](https://github.com/huashuimoyv/antigravity-chinese/releases/latest) 下载 **`antigravity-chinese-v1.0.7-portable.zip`**；
+1. 前往 [Releases 页面](https://github.com/huashuimoyv/antigravity-chinese/releases/latest) 下载 **`antigravity-chinese-v1.0.9-portable.zip`**；
 2. 解压到任意目录；
 3. 双击运行 **`启动汉化工具.exe`**（或双击 **`一键启动.cmd`**）；
 4. 点击界面的 **“一键启动 Antigravity”**（或 “更新补丁并启动”），工具会自动完成打补丁并拉起客户端。
@@ -147,7 +147,7 @@ node cli.js restore --path "D:\Apps\Antigravity\resources\app.asar"
 项目内置严谨的自动化测试套件（使用 Node.js 原生 Test Runner）：
 
 ```powershell
-# 运行全部 30 项自动化测试（涵盖 ASAR 规范互认、自适应兼容、侧边栏中文标题自动转换、现代设置面板与内置浏览器汉化、上下文挂载、模型额度联动、代理注入、DOM 保护及容灾恢复）
+# 运行全部 31 项自动化测试（涵盖 ASAR 规范互认、自适应兼容、侧边栏中文标题自动转换、语音模式与自定义项用量明细汉化、现代设置面板与内置浏览器汉化、上下文挂载、模型额度联动、代理注入、DOM 保护及容灾恢复）
 npm test
 ```
 

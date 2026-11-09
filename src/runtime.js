@@ -27,10 +27,10 @@ function localize(window, dictionary) {
   // Recognize a concrete combination of settings navigation and content, never body.
   function discoverPanels() {
     if (settingsPanel?.isConnected) return;
-    const modal = document.querySelector('.settings-modal-container, [data-testid^="settings-nav-item-"]');
+    const modal = document.querySelector('.settings-modal-container, .agy-dialog, [data-testid^="settings-nav-item-"]');
     if (modal) {
-      let root = modal.closest('.settings-modal-container') || modal.parentElement;
-      while (root && root.parentElement && root.parentElement !== document.body && !root.matches('.settings-modal-container')) {
+      let root = modal.closest('.settings-modal-container, .agy-dialog') || modal.parentElement;
+      while (root && root.parentElement && root.parentElement !== document.body && !root.matches('.settings-modal-container, .agy-dialog')) {
         root = root.parentElement;
       }
       if (root && root !== document.body && root !== document.documentElement) {
@@ -67,7 +67,7 @@ function localize(window, dictionary) {
   function inPanel(element) {
     for (let parent = element; parent; parent = parent.parentElement) {
       if (panels.has(parent)) return true;
-      if (parent.matches('dialog,[role="dialog"],[aria-modal="true"],.settings-modal-container,[class*="settings-modal"]')) return true;
+      if (parent.matches('dialog,[role="dialog"],[aria-modal="true"],.settings-modal-container,[class*="settings-modal"],.agy-dialog')) return true;
     }
     return false;
   }
@@ -75,7 +75,27 @@ function localize(window, dictionary) {
   const eligible = element => element && !element.closest(protectedSelector);
   function translate(value) {
     const key = value.trim().replace(/\s+/g, ' ');
-    return Object.hasOwn(dictionary, key) ? value.replace(/\S[\s\S]*\S|\S/, dictionary[key]) : value;
+    if (Object.hasOwn(dictionary, key)) {
+      return value.replace(/\S[\s\S]*\S|\S/, dictionary[key]);
+    }
+    const breakdownMatch = key.match(/^Show\s+(\d+)\s+breakdowns?$/i);
+    if (breakdownMatch) return value.replace(/\S[\s\S]*\S|\S/, `查看 ${breakdownMatch[1]} 项明细`);
+    const hideBreakdownMatch = key.match(/^Hide\s+(\d+)\s+breakdowns?$/i);
+    if (hideBreakdownMatch) return value.replace(/\S[\s\S]*\S|\S/, `收起 ${hideBreakdownMatch[1]} 项明细`);
+    const toolsMatch = key.match(/^(\d+)\s+tools?$/i);
+    if (toolsMatch) return value.replace(/\S[\s\S]*\S|\S/, `${toolsMatch[1]} 个工具`);
+    const demotedMatch = key.match(/^(\d+)\s+demoted$/i);
+    if (demotedMatch) return value.replace(/\S[\s\S]*\S|\S/, `${demotedMatch[1]} 项已降级`);
+    const excludedMatch = key.match(/^(\d+)\s+excluded$/i);
+    if (excludedMatch) return value.replace(/\S[\s\S]*\S|\S/, `${excludedMatch[1]} 项已排除`);
+    const toolsExcludedMatch = key.match(/^(\d+)\s+tools?\s+excluded$/i);
+    if (toolsExcludedMatch) return value.replace(/\S[\s\S]*\S|\S/, `${toolsExcludedMatch[1]} 个工具已排除`);
+    const outsideMatch = key.match(/^Settings for conversations outside of (.+)\.?$/i);
+    if (outsideMatch) {
+      const scope = outsideMatch[1].replace(/projects?/i, '项目').replace(/workspaces?/i, '工作区');
+      return value.replace(/\S[\s\S]*\S|\S/, `${scope}外部会话的设置。`);
+    }
+    return value;
   }
   function visit(node) {
     if (node.nodeType === 3) {
@@ -841,6 +861,7 @@ function localize(window, dictionary) {
       ['Email Review', '邮件审核'],
       ['Connection And Proxy', '网络连接与代理'],
       ['Connection', '连接'],
+      ['Connectivity', '连通性'],
       ['Proxy', '代理'],
       ['Checking', '检测'],
       ['Network', '网络'],
@@ -850,6 +871,8 @@ function localize(window, dictionary) {
       ['Economic Burden', '经济负担'],
       ['Awards And Certificates', '奖项与证书'],
       ['Recommendation Form', '推荐表'],
+      ['Recommendations', '推荐'],
+      ['Recommendation', '推荐'],
       ['Graduation', '毕业'],
       ['Video Info', '视频信息'],
       ['Catgirl', '猫娘'],
@@ -898,7 +921,7 @@ function localize(window, dictionary) {
     };
 
     const inspectAndLocalizeRow = async (row) => {
-      const cid = row.getAttribute('data-cascade-id');
+      const cid = row.getAttribute('data-sidebar-row-id') || row.getAttribute('data-cascade-id');
       if (!cid || cid === '_new' || checkedCids.has(cid) || inflightCids.has(cid)) return;
 
       const rowText = (row.textContent || '').trim();
@@ -960,7 +983,7 @@ function localize(window, dictionary) {
     };
 
     const scanSidebar = () => {
-      const rows = document.querySelectorAll('[data-testid="conversation-row-sidebar"]');
+      const rows = document.querySelectorAll('[data-sidebar-row-id], [data-cascade-id], [data-testid="conversation-row-sidebar"]');
       for (const row of rows) {
         inspectAndLocalizeRow(row);
       }

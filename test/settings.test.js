@@ -159,4 +159,68 @@ test('translates newly added built-in browser and plan review policy settings in
   assert.equal(doc.querySelector('nav a').textContent, '提供反馈');
 });
 
+test('translates voice mode settings, token usage breakdowns, outside project header and pinned conversations', async t => {
+  const html = `
+    <div class="agy-dialog">
+      <div id="voice">
+        <h3>Voice mode</h3>
+        <div>
+          <span>Voice</span>
+          <span>The voice used in Voice mode. Powered by Gemini Live.</span>
+          <button>Change</button>
+        </div>
+        <div>
+          <span>Microphone</span>
+          <span>Input device for voice mode and dictation.</span>
+          <span>System default</span>
+        </div>
+        <div>
+          <span>Volume</span>
+          <span>How loud Antigravity's voice is.</span>
+        </div>
+      </div>
+      <div id="customizations-breakdown">
+        <h3>Conversations</h3>
+        <p>Settings for conversations outside of projects.</p>
+        <p>The breakdown below shows token usage from customizations like rules, skills, and MCP. If a budget is exceeded, large rules are demoted to path pointers and large customizations are excluded automatically.</p>
+        <div>
+          <span>Other Customizations</span>
+          <span>Mcp Tools</span>
+          <button>Show 3 breakdowns</button>
+          <button>Show 71 breakdowns</button>
+          <button>Hide breakdown</button>
+        </div>
+      </div>
+    </div>
+    <div data-testid="section-header">
+      <h2><button><span>Pinned Conversations</span></button></h2>
+    </div>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:1234/' });
+  t.after(() => dom.window.close());
+  runtime(dom.window, dictionary);
+  await pause();
+
+  const doc = dom.window.document;
+  assert.equal(doc.querySelector('#voice h3').textContent, '语音模式');
+  assert.equal(doc.querySelector('#voice div:nth-of-type(1) span:first-of-type').textContent, '音色');
+  assert.equal(doc.querySelector('#voice div:nth-of-type(1) span:nth-of-type(2)').textContent, '语音模式中使用的音色。由 Gemini Live 提供技术支持。');
+  assert.equal(doc.querySelector('#voice div:nth-of-type(1) button').textContent, '更改');
+  assert.equal(doc.querySelector('#voice div:nth-of-type(2) span:first-of-type').textContent, '麦克风');
+  assert.equal(doc.querySelector('#voice div:nth-of-type(2) span:nth-of-type(2)').textContent, '语音模式和语音听写所使用的输入设备。');
+  assert.equal(doc.querySelector('#voice div:nth-of-type(2) span:nth-of-type(3)').textContent, '系统默认');
+  assert.equal(doc.querySelector('#voice div:nth-of-type(3) span:first-of-type').textContent, '音量');
+  assert.equal(doc.querySelector('#voice div:nth-of-type(3) span:nth-of-type(2)').textContent, 'Antigravity 朗读与播放声音的大小。');
+
+  assert.equal(doc.querySelector('#customizations-breakdown p:first-of-type').textContent, '项目外部会话的设置。');
+  assert.equal(doc.querySelector('#customizations-breakdown p:nth-of-type(2)').textContent, '下方的用量明细展示了来自规则、技能和 MCP 等自定义项的 Token 占用情况。如果超出预算配额，大型规则将降级为路径指针，大型自定义项将自动被排除。');
+  assert.equal(doc.querySelector('#customizations-breakdown div span:first-of-type').textContent, '其他自定义项');
+  assert.equal(doc.querySelector('#customizations-breakdown div span:nth-of-type(2)').textContent, 'MCP 工具');
+  assert.equal(doc.querySelector('#customizations-breakdown div button:nth-of-type(1)').textContent, '查看 3 项明细');
+  assert.equal(doc.querySelector('#customizations-breakdown div button:nth-of-type(2)').textContent, '查看 71 项明细');
+  assert.equal(doc.querySelector('#customizations-breakdown div button:nth-of-type(3)').textContent, '收起明细');
+
+  assert.equal(doc.querySelector('[data-testid="section-header"] span').textContent, '置顶对话');
+});
+
 
