@@ -790,5 +790,13 @@
   "Delete all recordings?": "删除所有录音？",
   "No recordings": "无录音",
   "Clear visited URLs and autocomplete suggestions from the built-in browser": "清除内置浏览器中访问过的网址与自动补全建议。",
-  "Browser Subagent": "浏览器子智能体"
+  "Browser Subagent": "浏览器子智能体",
+  "Interface Layout": "界面布局",
+  "Knowledge Work": "知识工作",
+  "Simplified interface for research, writing, and everyday tasks.": "专为研究、写作和日常任务打造的极简界面。",
+  "Software Engineering": "软件工程",
+  "Full interface for coding, developer tools, and managing agents.": "面向编程、开发者工具和智能体管理的完整专业界面。",
+  "This Computer": "本机电脑",
+  "Remote": "远程会话",
+  "Controls permissions for remote conversations.": "控制远程会话的执行权限。"
 }
