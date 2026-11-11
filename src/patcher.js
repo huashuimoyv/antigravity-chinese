@@ -25,7 +25,8 @@ const SUPPORTED = {
   '2.23.0': '81d220de63447d27db95adf67d9711b59ee317b2338ba538f419b354a54b1f60',
   '2.23.1': '81d220de63447d27db95adf67d9711b59ee317b2338ba538f419b354a54b1f60',
   '2.27.0': 'b8b61e3b2237c6f5fb4798b3c116a94dd0530500b304729fc1d1b192b567d46b',
-  '2.29.0': '2f4348c24fa6feeba6fef81644603304667b43a446b3887370781e90ec37ca2c'
+  '2.29.0': '2f4348c24fa6feeba6fef81644603304667b43a446b3887370781e90ec37ca2c',
+  '2.31.0': '8457dc1fe5fa34ff138e041923a66b852e0a6fb1623b9aedcfb80f15dd98e9d7'
 };
 const VERIFIED_PRELOAD_HASHES = new Set(Object.values(SUPPORTED));
 
@@ -91,7 +92,8 @@ function build(buffer) {
   const knownMenuHashes = new Set([
     MENU_HASH,
     '908318fecf7b99c1ae26dbf25ef9cbf05221ebec04f20bca81d059baa337e186',
-    '5f09ce9cec448c6ffeb30d2c58daf2d671a09ee03c7ebdaf784f1b61754225e8'
+    '5f09ce9cec448c6ffeb30d2c58daf2d671a09ee03c7ebdaf784f1b61754225e8',
+    '34ce3fabe919e74eae9034fa1ee32c3202f3c40b2f5ffa642bee23a0958a5820'
   ]);
   const isKnownMenu = knownMenuHashes.has(asar.sha256(menu));
   const isAdaptiveMenu = menuSource.includes('setupApplicationMenu') || (menuSource.includes('Menu') && menuSource.includes('exports'));

@@ -223,4 +223,82 @@ test('translates voice mode settings, token usage breakdowns, outside project he
   assert.equal(doc.querySelector('[data-testid="section-header"] span').textContent, '置顶对话');
 });
 
+test('translates Antigravity 2.31.0 coordinator agents, side questions, browser actions and interface layout', async t => {
+  const html = `
+    <div id="v231-test" role="dialog">
+      <div id="coordinators">
+        <h2>Coordinators</h2>
+        <button>New Coordinator</button>
+        <p>Build with one agent or a team</p>
+        <p>Describe what you want. Your agent plans and builds it, and brings in other agents when needed.</p>
+        <p>Review plans and walkthroughs</p>
+        <p>Comment on the plan before your agent starts, and get a walkthrough when it finishes.</p>
+      </div>
+      <div id="side-questions">
+        <span id="sq-count">3 Side Questions</span>
+        <button id="view-sq">View 3 side questions</button>
+        <button id="view-help-sq">View 2 help items and 3 side questions</button>
+        <button id="del-sq">Delete Side Question</button>
+      </div>
+      <div id="browser-actions">
+        <button title="Mention Page">Mention Page</button>
+        <button title="Capture Screenshot">Capture Screenshot</button>
+        <button title="Capture Console Logs">Capture Console Logs</button>
+      </div>
+      <div id="interface-layout">
+        <h3>Interface Layout</h3>
+        <div>
+          <h4>Knowledge Work</h4>
+          <p>Simplified interface for research, writing, and everyday tasks.</p>
+        </div>
+        <div>
+          <h4>Software Engineering</h4>
+          <p>Full interface for coding, developer tools, and managing agents.</p>
+        </div>
+      </div>
+      <div id="permissions-inline">
+        <span>Configure what the agent can do in local and remote conversations.</span>
+        <span>Controls permissions for remote conversations.</span>
+      </div>
+      <div id="plan-inline">
+        <span>Type</span> <code>/</code> <span>and select</span> <code>plan</code> <span>to have the agent generate a plan.</span>
+      </div>
+    </div>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:1234/' });
+  t.after(() => dom.window.close());
+  runtime(dom.window, dictionary);
+  await pause();
+
+  const doc = dom.window.document;
+  assert.equal(doc.querySelector('#coordinators h2').textContent, '协调员智能体');
+  assert.equal(doc.querySelector('#coordinators button').textContent, '新建协调员');
+  assert.equal(doc.querySelector('#coordinators p:nth-of-type(1)').textContent, '单智能体或团队协同构建');
+  assert.equal(doc.querySelector('#coordinators p:nth-of-type(2)').textContent, '描述你的需求。你的主智能体将规划并构建它，并在需要时引入其他智能体协同工作。');
+  assert.equal(doc.querySelector('#coordinators p:nth-of-type(3)').textContent, '审阅计划与演练讲解');
+  assert.equal(doc.querySelector('#coordinators p:nth-of-type(4)').textContent, '在智能体开始执行前对计划发表批注，并在完成后获得全流程演练讲解。');
+
+  assert.equal(doc.querySelector('#sq-count').textContent, '3 个副问题');
+  assert.equal(doc.querySelector('#view-sq').textContent, '查看 3 个副问题');
+  assert.equal(doc.querySelector('#view-help-sq').textContent, '查看 2 项求助与 3 个副问题');
+  assert.equal(doc.querySelector('#del-sq').textContent, '删除副问题');
+
+  assert.equal(doc.querySelector('#browser-actions button:nth-of-type(1)').getAttribute('title'), '在对话中提及网页');
+  assert.equal(doc.querySelector('#browser-actions button:nth-of-type(2)').getAttribute('title'), '捕获网页截图');
+  assert.equal(doc.querySelector('#browser-actions button:nth-of-type(3)').getAttribute('title'), '捕获控制台日志');
+
+  assert.equal(doc.querySelector('#interface-layout h3').textContent, '界面布局');
+  assert.equal(doc.querySelector('#interface-layout div:nth-of-type(1) h4').textContent, '知识工作');
+  assert.equal(doc.querySelector('#interface-layout div:nth-of-type(1) p').textContent, '专为研究、写作和日常任务打造的极简界面。');
+  assert.equal(doc.querySelector('#interface-layout div:nth-of-type(2) h4').textContent, '软件工程');
+  assert.equal(doc.querySelector('#interface-layout div:nth-of-type(2) p').textContent, '面向编程、开发者工具和智能体管理的完整专业界面。');
+
+  assert.equal(doc.querySelector('#permissions-inline span:nth-of-type(1)').textContent, '配置智能体在本地与远程对话中可以执行的操作。');
+  assert.equal(doc.querySelector('#permissions-inline span:nth-of-type(2)').textContent, '控制远程会话的执行权限。');
+
+  assert.equal(doc.querySelector('#plan-inline span:nth-of-type(1)').textContent, '输入');
+  assert.equal(doc.querySelector('#plan-inline span:nth-of-type(2)').textContent, '并选择');
+  assert.equal(doc.querySelector('#plan-inline span:nth-of-type(3)').textContent, '以让智能体生成计划。');
+});
+
 

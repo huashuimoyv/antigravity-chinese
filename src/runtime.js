@@ -90,6 +90,12 @@ function localize(window, dictionary) {
     if (excludedMatch) return value.replace(/\S[\s\S]*\S|\S/, `${excludedMatch[1]} 项已排除`);
     const toolsExcludedMatch = key.match(/^(\d+)\s+tools?\s+excluded$/i);
     if (toolsExcludedMatch) return value.replace(/\S[\s\S]*\S|\S/, `${toolsExcludedMatch[1]} 个工具已排除`);
+    const sideQuestionsMatch = key.match(/^(\d+)\s+Side\s+Questions?$/i);
+    if (sideQuestionsMatch) return value.replace(/\S[\s\S]*\S|\S/, `${sideQuestionsMatch[1]} 个副问题`);
+    const viewSideQuestionsMatch = key.match(/^View\s+(\d+)\s+side\s+questions?$/i);
+    if (viewSideQuestionsMatch) return value.replace(/\S[\s\S]*\S|\S/, `查看 ${viewSideQuestionsMatch[1]} 个副问题`);
+    const viewHelpAndSideMatch = key.match(/^View\s+(\d+)\s+help(?:\s+items?)?\s+and\s+(\d+)\s+side\s+questions?$/i);
+    if (viewHelpAndSideMatch) return value.replace(/\S[\s\S]*\S|\S/, `查看 ${viewHelpAndSideMatch[1]} 项求助与 ${viewHelpAndSideMatch[2]} 个副问题`);
     const outsideMatch = key.match(/^Settings for conversations outside of (.+)\.?$/i);
     if (outsideMatch) {
       const scope = outsideMatch[1].replace(/projects?/i, '项目').replace(/workspaces?/i, '工作区');
