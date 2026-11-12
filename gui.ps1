@@ -12,6 +12,13 @@ $script:PendingLaunch = $false
 $reader = [System.Xml.XmlReader]::Create((Join-Path $PSScriptRoot 'gui\window.xaml'))
 try { $script:Window = [Windows.Markup.XamlReader]::Load($reader) } finally { $reader.Dispose() }
 
+$iconFile = Join-Path $PSScriptRoot 'assets\icon.ico'
+if (Test-Path $iconFile) {
+    try {
+        $script:Window.Icon = [Windows.Media.Imaging.BitmapFrame]::Create((New-Object Uri($iconFile, [UriKind]::Absolute)))
+    } catch {}
+}
+
 $script:Ui = @{}
 foreach ($name in 'PathBox','BrowseButton','CheckButton','InstallButton','RestoreButton','LogBox','StatusDot','StatusTitle','StatusDetail','VersionLabel','ActivityLabel','ProxyEnabledBox','ProxyUrlBox','LaunchButton') {
     $script:Ui[$name] = $Window.FindName($name)

@@ -224,9 +224,31 @@ function change(target, action, guard = assertStopped) {
       readBackup(dir, { ...info, hash });
     }
     swap(target, before, after, guard);
+    if (action === 'install') {
+      deployIcon(target);
+    }
     return { changed: true, state: action === 'install' ? '已安装本地汉化补丁' : '已逐字节恢复安装前资源包',
       sha256: asar.sha256(after) };
   } finally { fs.rmdirSync(lock); }
+}
+
+function deployIcon(target) {
+  try {
+    const iconSrc = path.join(__dirname, '..', 'assets', 'icon.ico');
+    if (!fs.existsSync(iconSrc)) return;
+    const targets = [
+      path.join(path.dirname(target), 'app-icon.ico'),
+      path.join(process.env.APPDATA || path.join(process.env.USERPROFILE || '', 'AppData', 'Roaming'), 'Antigravity', 'app-icon.ico'),
+      path.join(process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || '', 'AppData', 'Local'), 'AntigravityLauncher', 'antigravity_avatar_v2.ico')
+    ];
+    for (const dest of targets) {
+      try {
+        const destDir = path.dirname(dest);
+        if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+        fs.copyFileSync(iconSrc, dest);
+      } catch {}
+    }
+  } catch {}
 }
 
 module.exports = { locate, assertStopped, inspect, build, status, change, MARKER };

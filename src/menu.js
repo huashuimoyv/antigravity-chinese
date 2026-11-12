@@ -167,6 +167,39 @@ function installMenuTranslation(api, electron, dictionary) {
           if (timer) clearTimeout(timer);
           persist();
         });
+
+        // 3. 自定义窗口与任务栏图标注入 (Custom Window & Taskbar Icon)
+        try {
+          if (typeof win.setIcon === 'function') {
+            const resolveIcon = () => {
+              const candidates = [];
+              try {
+                if (typeof electron.app.getPath === 'function') {
+                  candidates.push(path.join(electron.app.getPath('userData'), 'app-icon.ico'));
+                  candidates.push(path.join(electron.app.getPath('userData'), 'app-icon.png'));
+                }
+              } catch {}
+              const appData = process.env.APPDATA || path.join(process.env.USERPROFILE || '', 'AppData', 'Roaming');
+              candidates.push(path.join(appData, 'Antigravity', 'app-icon.ico'));
+              const localAppData = process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || '', 'AppData', 'Local');
+              candidates.push(path.join(localAppData, 'AntigravityLauncher', 'antigravity_avatar_v2.ico'));
+              candidates.push(path.join(localAppData, 'CustomIcons', 'avatar_icon.ico'));
+              try {
+                const resPath = process.resourcesPath || path.join(__dirname, '..', '..');
+                candidates.push(path.join(resPath, 'app-icon.ico'));
+                candidates.push(path.join(resPath, 'assets', 'icon.ico'));
+              } catch {}
+              for (const cand of candidates) {
+                if (cand && fs.existsSync(cand)) return cand;
+              }
+              return null;
+            };
+            const iconPath = resolveIcon();
+            if (iconPath) {
+              win.setIcon(iconPath);
+            }
+          }
+        } catch {}
       } catch {}
     });
   }

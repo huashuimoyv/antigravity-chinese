@@ -17,11 +17,11 @@ Write-Host "`n[1/4] 编译 EXE 启动器..."
 $csc = 'C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe'
 if (-not (Test-Path $csc)) { throw "找不到 csc.exe，请确认 .NET Framework 4 已安装" }
 $exeDest = Join-Path $root '启动汉化工具.exe'
-& $csc /target:winexe /platform:anycpu /utf8output `
-    /out:$exeDest `
-    /reference:System.Windows.Forms.dll `
-    /reference:System.dll `
-    (Join-Path $root 'launcher\Program.cs') | Out-String -Stream | Write-Host
+$iconFile = Join-Path $root 'assets\icon.ico'
+$cscArgs = @('/target:winexe', '/platform:anycpu', '/utf8output', "/out:$exeDest", '/reference:System.Windows.Forms.dll', '/reference:System.dll')
+if (Test-Path $iconFile) { $cscArgs += "/win32icon:$iconFile" }
+$cscArgs += (Join-Path $root 'launcher\Program.cs')
+& $csc $cscArgs | Out-String -Stream | Write-Host
 if ($LASTEXITCODE -ne 0) { throw "EXE 编译失败" }
 Write-Host "OK: $exeDest"
 
@@ -48,6 +48,7 @@ foreach ($f in $portableFiles) {
 Copy-Item (Join-Path $root 'src')  (Join-Path $tmpPortable 'src')  -Recurse
 Copy-Item (Join-Path $root 'dict') (Join-Path $tmpPortable 'dict') -Recurse
 Copy-Item (Join-Path $root 'gui')  (Join-Path $tmpPortable 'gui')  -Recurse
+if (Test-Path (Join-Path $root 'assets')) { Copy-Item (Join-Path $root 'assets') (Join-Path $tmpPortable 'assets') -Recurse }
 
 Compress-Archive -Path "$tmpPortable\*" -DestinationPath $portableZip
 Remove-Item $tmpPortable -Recurse
@@ -73,6 +74,7 @@ if (-not (Test-Path $binDir)) {
     Copy-Item (Join-Path $root 'src')  (Join-Path $tmpStandalone 'src')  -Recurse
     Copy-Item (Join-Path $root 'dict') (Join-Path $tmpStandalone 'dict') -Recurse
     Copy-Item (Join-Path $root 'gui')  (Join-Path $tmpStandalone 'gui')  -Recurse
+    if (Test-Path (Join-Path $root 'assets')) { Copy-Item (Join-Path $root 'assets') (Join-Path $tmpStandalone 'assets') -Recurse }
     Copy-Item $binDir (Join-Path $tmpStandalone 'bin') -Recurse
 
     Compress-Archive -Path "$tmpStandalone\*" -DestinationPath $standaloneZip

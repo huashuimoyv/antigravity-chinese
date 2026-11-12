@@ -100,4 +100,40 @@ test('applies proxy settings to env and session when enabled in proxy-config.jso
   }
 });
 
+test('injects custom window icon on browser-window-created when icon is present', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'ag-icon-'));
+  try {
+    const iconFile = path.join(userData, 'app-icon.ico');
+    fs.writeFileSync(iconFile, 'dummy-icon-bytes');
+    let createdHandler = null;
+    const electron = {
+      Menu: { getApplicationMenu: () => null, setApplicationMenu: () => {} },
+      app: {
+        getPath: () => userData,
+        on: (event, fn) => { if (event === 'browser-window-created') createdHandler = fn; }
+      }
+    };
+    install({ setupApplicationMenu: () => {} }, electron, dictionary);
+    assert.equal(typeof createdHandler, 'function');
+    let appliedIcon = null;
+    const win = {
+      getBounds: () => ({ x: 100, y: 100, width: 1000, height: 700 }),
+      setBounds: () => {},
+      isDestroyed: () => false,
+      isMaximized: () => false,
+      isMinimized: () => false,
+      isFullScreen: () => false,
+      on: () => {},
+      setIcon: (ico) => { appliedIcon = ico; }
+    };
+    createdHandler({}, win);
+    assert.equal(appliedIcon, iconFile);
+  } finally {
+    fs.rmSync(userData, { recursive: true, force: true });
+  }
+});
+
 
