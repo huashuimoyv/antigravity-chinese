@@ -301,11 +301,24 @@ function localize(window, dictionary) {
       }
     };
 
+    const resolvePlaceholderModel = m => {
+      if (!m) return '';
+      const s = String(m).toLowerCase();
+      if (s.includes('m525') || s.includes('m526') || s.includes('m527') || s.includes('m528')) return 'gemini-4-hydrogen';
+      if (s.includes('m417') || s.includes('m418') || s.includes('m419')) return 'gemini-4-argon';
+      if (s.includes('m668')) return 'orchestrator-argon';
+      if (s.includes('m670')) return 'gemini-4-carbon';
+      if (s.includes('m318') || s.includes('m319') || s.includes('m320')) return 'gemini-3.8-flash';
+      if (s.includes('m400') || s.includes('m401') || s.includes('m402')) return 'claude-opus-5.5';
+      if (s.includes('m403') || s.includes('m404') || s.includes('m405')) return 'claude-sonnet-5.5';
+      return m;
+    };
+
     const parseGeneratorMetadata = (list, prev) => {
       if (!Array.isArray(list) || list.length === 0) return prev || null;
       let latestMeta = null;
-      let latestModel = prev?.modelName || '';
-      let latestUsage = prev?.usage || null;
+      let latestModel = '';
+      let latestUsage = null;
       let checkpointIdx = prev?.checkpointIdx ?? -1;
       for (let i = list.length - 1; i >= 0; i--) {
         const item = list[i];
@@ -313,6 +326,7 @@ function localize(window, dictionary) {
         const cm = item?.chatModel;
         if (cm) {
           if (!latestUsage && cm.usage) latestUsage = cm.usage;
+          if (!latestModel && cm.usage?.model) latestModel = resolvePlaceholderModel(cm.usage.model);
           const csm = cm.chatStartMetadata;
           if (csm && typeof csm.checkpointIndex === 'number') checkpointIdx = csm.checkpointIndex;
           if (csm?.contextWindowMetadata && !latestMeta) {
@@ -321,6 +335,8 @@ function localize(window, dictionary) {
         }
         if (latestMeta && latestModel && latestUsage) break;
       }
+      latestModel = latestModel || prev?.modelName || '';
+      latestUsage = latestUsage || prev?.usage || null;
       const max = Number(latestMeta?.maxContextTokens) || prev?.max || 256000;
       const uncachedIn = Number(latestUsage?.inputTokens) || 0;
       const cachedIn = Number(latestUsage?.cacheReadTokens) || 0;
@@ -487,14 +503,19 @@ function localize(window, dictionary) {
 
     const getActiveModelCategory = activeInfo => {
       const selectorBtn = document.querySelector('[data-testid="model-selector-trigger"]');
-      const selectorText = selectorBtn ? selectorBtn.textContent.trim().toLowerCase() : '';
-      const candidate = (selectorText || activeInfo?.modelName || '').toLowerCase();
-      if (candidate.includes('argon') || candidate.includes('gemini 4') || candidate.includes('gemini-4') || candidate.includes('g4')) {
+      const selectorLabel = selectorBtn ? (selectorBtn.getAttribute('aria-label') || '') : '';
+      const selectorText = selectorBtn ? selectorBtn.textContent.trim() : '';
+      const candidate = (selectorText || selectorLabel || activeInfo?.modelName || '').toLowerCase();
+      // Only Argon models (Gemini 4 Argon / Orchestrator (Argon)) use the separate Argon weekly quota pool.
+      if (candidate.includes('argon') || candidate.includes('m417') || candidate.includes('m418') || candidate.includes('m419') || candidate.includes('m668')) {
         return 'argon';
       }
-      if (candidate.includes('claude') || candidate.includes('sonnet') || candidate.includes('opus') || candidate.includes('gpt')) {
+      if (candidate.includes('claude') || candidate.includes('sonnet') || candidate.includes('opus') || candidate.includes('gpt') ||
+          candidate.includes('m400') || candidate.includes('m401') || candidate.includes('m402') ||
+          candidate.includes('m403') || candidate.includes('m404') || candidate.includes('m405')) {
         return 'claude';
       }
+      // Gemini 4 Hydrogen, Gemini 4 Carbon, Gemini 3.8 Flash and Pro share the Gemini Models quota pool.
       return 'gemini';
     };
 
@@ -528,17 +549,12 @@ function localize(window, dictionary) {
     };
 
     const buildPopoverHtml = (info, quota) => {
-      if (!info || info.used === 0) return '';
-      const max = info.max || 256000;
-      const msgColor = info.pct >= 75 ? '#f43f5e' : '#f59e0b';
-      const cacheRatio = (info.uncachedIn + info.cachedIn) > 0
-        ? Math.round((info.cachedIn / (info.uncachedIn + info.cachedIn)) * 100)
-        : 0;
-
+      const hasContext = info && info.used > 0;
+      if (!hasContext && !quota) return '';
       const qColor = pct => (pct >= 50 ? '#34d399' : (pct >= 20 ? '#fbbf24' : '#f43f5e'));
 
       const quotaSection = quota ? `
-        <div style="margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(128,128,128,0.18);">
+        <div style="${hasContext ? 'margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(128,128,128,0.18);' : ''}">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
             <span style="font-size:12px;font-weight:600;color:var(--foreground,#e5e7eb);">模型用量额度概览</span>
             <span style="font-size:10px;color:var(--muted-foreground,#9ca3af);">剩余 (重置倒计时)</span>
@@ -554,9 +570,17 @@ function localize(window, dictionary) {
             ` : ''}
             ${quota.gemini5h ? `
               <div style="display:flex;justify-content:space-between;align-items:center;">
-                <span style="color:#38bdf8;">Gemini 系列 (5小时)</span>
+                <span style="color:#38bdf8;">Gemini 系列 · Hydrogen/Flash (5小时)</span>
                 <span style="font-variant-numeric:tabular-nums;color:${qColor(quota.gemini5h.pct)};font-weight:600;">
                   ${quota.gemini5h.pct}% ${quota.gemini5h.countdown ? `<small style="font-size:9.5px;opacity:0.85;font-weight:normal;">(${quota.gemini5h.countdown})</small>` : ''}
+                </span>
+              </div>
+            ` : ''}
+            ${quota.geminiWeekly ? `
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:#60a5fa;">Gemini 系列 · Hydrogen/Flash (周额度)</span>
+                <span style="font-variant-numeric:tabular-nums;color:${qColor(quota.geminiWeekly.pct)};font-weight:600;">
+                  ${quota.geminiWeekly.pct}% ${quota.geminiWeekly.countdown ? `<small style="font-size:9.5px;opacity:0.85;font-weight:normal;">(${quota.geminiWeekly.countdown})</small>` : ''}
                 </span>
               </div>
             ` : ''}
@@ -568,9 +592,25 @@ function localize(window, dictionary) {
                 </span>
               </div>
             ` : ''}
+            ${quota.claudeWeekly ? `
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:#f59e0b;">Claude & GPT (周额度)</span>
+                <span style="font-variant-numeric:tabular-nums;color:${qColor(quota.claudeWeekly.pct)};font-weight:600;">
+                  ${quota.claudeWeekly.pct}% ${quota.claudeWeekly.countdown ? `<small style="font-size:9.5px;opacity:0.85;font-weight:normal;">(${quota.claudeWeekly.countdown})</small>` : ''}
+                </span>
+              </div>
+            ` : ''}
           </div>
         </div>
       ` : '';
+
+      if (!hasContext) return quotaSection;
+
+      const max = info.max || 256000;
+      const msgColor = info.pct >= 75 ? '#f43f5e' : '#f59e0b';
+      const cacheRatio = (info.uncachedIn + info.cachedIn) > 0
+        ? Math.round((info.cachedIn / (info.uncachedIn + info.cachedIn)) * 100)
+        : 0;
 
       return `
         ${quotaSection}
@@ -630,7 +670,22 @@ function localize(window, dictionary) {
     };
 
     const buildTitlebarHtml = (info, quota) => {
+      const qb = getActiveQuotaBadge(quota, info);
       if (!info || info.used === 0) {
+        if (qb) {
+          return `
+            <div data-ag-action="toggle-popover" title="点击展开/收起模型额度概览" style="display:inline-flex;align-items:center;gap:6px;height:100%;cursor:pointer;font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;">
+              <span style="color:var(--muted-foreground,#9ca3af);">新对话</span>
+              <span style="width:1px;height:10px;background:rgba(128,128,128,0.18);flex-shrink:0;"></span>
+              <span style="display:inline-flex;align-items:center;gap:3px;color:${qb.color};font-weight:500;">
+                <span style="width:5px;height:5px;border-radius:999px;background:${qb.color};"></span>
+                <span>${qb.prefix} ${qb.pct}%</span>
+                ${qb.countdown ? `<span style="font-size:10px;opacity:0.85;">(${qb.countdown})</span>` : ''}
+              </span>
+              <span style="font-size:10px;color:var(--muted-foreground,#9ca3af);">${cardExpanded ? '▴' : '▾'}</span>
+            </div>
+          `;
+        }
         return `<span style="font-size:11px;color:var(--muted-foreground,#9ca3af);">上下文加载中…</span>`;
       }
       const max = info.max || 256000;
@@ -642,8 +697,6 @@ function localize(window, dictionary) {
       const cacheRatio = (info.uncachedIn + info.cachedIn) > 0
         ? Math.round((info.cachedIn / (info.uncachedIn + info.cachedIn)) * 100)
         : 0;
-
-      const qb = getActiveQuotaBadge(quota, info);
 
       return `
         <div data-ag-action="toggle-popover" title="点击展开/收起详细上下文与模型额度" style="display:inline-flex;align-items:center;gap:7px;height:100%;cursor:pointer;">
@@ -729,7 +782,7 @@ function localize(window, dictionary) {
       }
 
       let pop = document.getElementById('ag-titlebar-context-popover');
-      if (!cardExpanded || !activeInfo) {
+      if (!cardExpanded || (!activeInfo && !quota)) {
         if (pop) pop.style.display = 'none';
         return;
       }
@@ -789,6 +842,12 @@ function localize(window, dictionary) {
         }
       }
       window.setTimeout(() => renderAll(), 120);
+      window.setTimeout(() => renderAll(), 350);
+    }, true);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === 'Escape') {
+        window.setTimeout(() => renderAll(), 120);
+      }
     }, true);
   }
 

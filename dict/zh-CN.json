@@ -819,5 +819,15 @@
   "Type / and select plan to have the agent generate a plan.": "输入 / 并选择 plan 让智能体生成计划。",
   "Configure what the agent can do in local and remote conversations.": "配置智能体在本地与远程对话中可以执行的操作。",
   "Hide breakdowns": "收起明细",
-  "Show breakdowns": "展开明细"
+  "Show breakdowns": "展开明细",
+  "Extra": "超高",
+  "Max": "最高",
+  "Orchestrator (Argon)": "编排协调员 (Argon)",
+  "Gemini 4 Hydrogen (XHigh)": "Gemini 4 Hydrogen（超高推理）",
+  "Gemini 4 Hydrogen (High)": "Gemini 4 Hydrogen（高推理）",
+  "Gemini 4 Hydrogen (Medium)": "Gemini 4 Hydrogen（中推理）",
+  "Gemini 4 Hydrogen (Low)": "Gemini 4 Hydrogen（低推理）",
+  "Gemini 4 Argon (High)": "Gemini 4 Argon（高推理）",
+  "Gemini 4 Argon (Medium)": "Gemini 4 Argon（中推理）",
+  "Gemini 4 Argon (Low)": "Gemini 4 Argon（低推理）"
 }

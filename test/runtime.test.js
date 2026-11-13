@@ -278,6 +278,105 @@ test('automatically localizes English sidebar conversation titles to Chinese via
   assert.equal(updatedTitle, '毕业生推荐表里的奖项和证书可以写什么', 'should extract and push Chinese title from user prompt');
 });
 
+test('treats Gemini 4 Hydrogen as Gemini Models quota pool rather than Argon weekly pool and supports empty conversations', async t => {
+  const html = `
+    <html>
+      <head></head>
+      <body>
+        <div data-testid="conversation-row-sidebar" data-selected="true" data-cascade-id="test-cid-hydrogen"></div>
+        <button data-testid="model-selector-trigger" aria-label="Select model, current: Gemini 4 Hydrogen Extra">Gemini 4 Hydrogen Extra</button>
+        <header>
+          <div>
+            <button data-testid="titlebar-more-actions">More</button>
+          </div>
+        </header>
+      </body>
+    </html>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:12345/' });
+  t.after(() => dom.window.close());
+  dom.window.__APP_CONFIG__ = { csrfToken: '12345678-1234-1234-1234-123456789abc' };
+
+  let emptyMetadata = false;
+  dom.window.fetch = async (url) => {
+    if (url.includes('RetrieveUserQuotaSummary')) {
+      return {
+        ok: true,
+        json: async () => ({
+          response: {
+            groups: [
+              {
+                displayName: 'Gemini Models',
+                buckets: [
+                  { bucketId: 'gemini-weekly', displayName: 'Weekly Limit Remaining', window: 'weekly', remainingFraction: 0.57, resetTime: new Date(Date.now() + 86400000).toISOString() },
+                  { bucketId: 'gemini-5h', displayName: 'Five Hour Limit Remaining', window: '5h', remainingFraction: 0.89, resetTime: new Date(Date.now() + 7200000).toISOString() }
+                ]
+              },
+              {
+                displayName: 'Gemini 4 Argon',
+                buckets: [
+                  { bucketId: 'gemini-argon-wtu-weekly', displayName: 'Gemini 4 Argon Weekly Limit', window: 'weekly', remainingFraction: 0.20, resetTime: new Date(Date.now() + 172800000).toISOString() }
+                ]
+              }
+            ]
+          }
+        })
+      };
+    }
+    if (emptyMetadata) {
+      return { ok: true, json: async () => ({ generatorMetadata: [] }) };
+    }
+    return {
+      ok: true,
+      json: async () => ({
+        generatorMetadata: [{
+          chatModel: {
+            usage: { model: 'MODEL_PLACEHOLDER_M528', inputTokens: 2000, cacheReadTokens: 8000, outputTokens: 150 },
+            chatStartMetadata: {
+              contextWindowMetadata: {
+                maxContextTokens: 256000,
+                estimatedTokensUsed: 10000
+              }
+            }
+          }
+        }]
+      })
+    };
+  };
+
+  runtime(dom.window, dictionary);
+  await delay();
+  await delay();
+
+  const bar = dom.window.document.getElementById('ag-titlebar-context-bar');
+  assert.ok(bar, 'context monitor widget should be mounted');
+  assert.match(bar.textContent, /5h额度 89%/, 'Gemini 4 Hydrogen must use Gemini 5h quota instead of Argon 20%');
+  assert.doesNotMatch(bar.textContent, /G4周额/, 'Gemini 4 Hydrogen must not show G4周额');
+
+  // Switch to Argon then back to Hydrogen Extra
+  const trigger = dom.window.document.querySelector('[data-testid="model-selector-trigger"]');
+  trigger.textContent = 'Gemini 4 Argon High';
+  const toggleBtn = bar.querySelector('[data-ag-action="toggle-popover"]');
+  toggleBtn.click();
+  await delay();
+  assert.match(bar.textContent, /G4周额 20%/, 'Gemini 4 Argon should show Argon weekly quota');
+
+  trigger.textContent = 'Gemini 4 Hydrogen Extra';
+  toggleBtn.click();
+  await delay();
+  assert.match(bar.textContent, /5h额度 89%/, 'switching back to Hydrogen Extra should restore 5h quota');
+
+  // Open popover and verify weekly limit row is also shown
+  toggleBtn.click();
+  await delay();
+  const pop = dom.window.document.getElementById('ag-titlebar-context-popover');
+  assert.ok(pop && pop.style.display !== 'none');
+  assert.match(pop.textContent, /Gemini 系列 · Hydrogen\/Flash \(5小时\)/);
+  assert.match(pop.textContent, /Gemini 系列 · Hydrogen\/Flash \(周额度\)/);
+  assert.match(pop.textContent, /57%/);
+  assert.match(pop.textContent, /gemini-4-hydrogen/);
+});
+
 
 
 

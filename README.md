@@ -8,7 +8,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%20Only-red?logo=windows)](https://www.microsoft.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.12-339933?logo=node.js)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-32%20Passed-brightgreen)](test/)
+[![Tests](https://img.shields.io/badge/Tests-34%20Passed-brightgreen)](test/)
 
 </div>
 
