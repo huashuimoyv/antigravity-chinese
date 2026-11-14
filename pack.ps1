@@ -12,18 +12,36 @@ if (-not $Version) {
 }
 Write-Host "版本: $Version"
 
+# ---------- 发布前一致性校验 ----------
+$releaseScript = Join-Path $root 'scripts\release.js'
+Write-Host "`n[0/4] 发布前一致性校验..."
+& node $releaseScript verify-repo --version "$Version"
+if ($LASTEXITCODE -ne 0) { throw "发布前一致性校验失败" }
+
 # ---------- 编译 EXE 启动器 ----------
 Write-Host "`n[1/4] 编译 EXE 启动器..."
 $csc = 'C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe'
 if (-not (Test-Path $csc)) { throw "找不到 csc.exe，请确认 .NET Framework 4 已安装" }
 $exeDest = Join-Path $root '启动汉化工具.exe'
 $iconFile = Join-Path $root 'assets\icon.ico'
-$cscArgs = @('/target:winexe', '/platform:anycpu', '/utf8output', "/out:$exeDest", '/reference:System.Windows.Forms.dll', '/reference:System.dll')
+$asmVersion = (& node $releaseScript assembly-version --version "$Version" | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or -not $asmVersion) { throw "无法解析 Win32 程序集版本号: $Version" }
+$cscArgs = @('/target:winexe', '/platform:anycpu', '/utf8output', "/out:$exeDest", '/reference:System.Windows.Forms.dll', '/reference:System.dll', '/define:CUSTOM_VERSION')
 if (Test-Path $iconFile) { $cscArgs += "/win32icon:$iconFile" }
-$cscArgs += (Join-Path $root 'launcher\Program.cs')
-& $csc $cscArgs | Out-String -Stream | Write-Host
-if ($LASTEXITCODE -ne 0) { throw "EXE 编译失败" }
-Write-Host "OK: $exeDest"
+$asmInfoFile = Join-Path $env:TEMP ("ag-asm-" + [guid]::NewGuid().ToString('N') + '.cs')
+try {
+    [IO.File]::WriteAllText(
+        $asmInfoFile,
+        "using System.Reflection;`r`n[assembly: AssemblyVersion(`"$asmVersion`")]`r`n[assembly: AssemblyFileVersion(`"$asmVersion`")]`r`n",
+        [Text.UTF8Encoding]::new($false)
+    )
+    $cscArgs += @((Join-Path $root 'launcher\Program.cs'), $asmInfoFile)
+    & $csc $cscArgs | Out-String -Stream | Write-Host
+    if ($LASTEXITCODE -ne 0) { throw "EXE 编译失败" }
+} finally {
+    if (Test-Path $asmInfoFile) { Remove-Item $asmInfoFile -Force -ErrorAction SilentlyContinue }
+}
+Write-Host "OK: $exeDest (FileVersion=$asmVersion)"
 
 # ---------- 准备输出目录 ----------
 $distDir = Join-Path $root 'dist'
@@ -92,8 +110,13 @@ foreach ($zip in Get-ChildItem $distDir -Filter "antigravity-chinese-v${Version}
     $lines += "$hash  $($zip.Name)"
     Write-Host "$hash  $($zip.Name)"
 }
-$lines | Set-Content $checksumFile -Encoding UTF8
+if ($lines.Count -eq 0) { throw "未找到可用于生成校验文件的压缩包" }
+[IO.File]::WriteAllText($checksumFile, ($lines -join "`n") + "`n", [Text.UTF8Encoding]::new($false))
 Write-Host "OK: checksums-sha256.txt"
+
+Write-Host "`n[5/5] 解包自检归档与校验文件..."
+& node $releaseScript verify-archive --zip "$portableZip" --checksum "$checksumFile" --version "$Version"
+if ($LASTEXITCODE -ne 0) { throw "打包归档自检失败" }
 
 Write-Host "`n===== 打包完成 ====="
 Write-Host "输出目录: $distDir"

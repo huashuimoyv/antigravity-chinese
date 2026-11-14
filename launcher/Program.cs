@@ -6,8 +6,10 @@ using System.Reflection;
 
 [assembly: AssemblyTitle("Antigravity 汉化工具")]
 [assembly: AssemblyDescription("Antigravity 中文汉化 GUI 启动器")]
+#if !CUSTOM_VERSION
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
+#endif
 
 class Launcher
 {

@@ -4,6 +4,10 @@
 const patcher = require('./src/patcher');
 const pkg = require('./package.json');
 const args = process.argv.slice(2);
+const supportedVersions = patcher.SUPPORTED_VERSIONS || [];
+const versionRange = supportedVersions.length >= 2
+  ? `${supportedVersions[0]} ~ ${supportedVersions[supportedVersions.length - 1]}`
+  : (supportedVersions[0] || '2.12.2');
 const help = `Antigravity 本地汉化与功能整合工具 ${pkg.version}（Windows / Node.js 22.12+）
 
   node cli.js check                 检查客户端版本、补丁状态和进程
@@ -12,7 +16,7 @@ const help = `Antigravity 本地汉化与功能整合工具 ${pkg.version}（Win
   node cli.js restore               校验备份后恢复安装前资源包
 
 以上命令均可附加 --path "安装目录或 app.asar 路径"。
-支持 Antigravity 2.12.2 ~ 2.29.0 及后续微版本智能自适应兼容。运行无需 npm install，也不访问网络。
+支持 Antigravity ${versionRange} 及后续微版本智能自适应兼容。运行无需 npm install，也不访问网络。
 `;
 try {
   const command = args.shift() || 'help';

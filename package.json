@@ -10,7 +10,9 @@
   "scripts": {
     "test": "node --test",
     "check": "node cli.js check",
-    "status": "node cli.js status"
+    "status": "node cli.js status",
+    "verify:release": "node scripts/release.js verify-repo",
+    "pack": "powershell -NoProfile -ExecutionPolicy Bypass -File pack.ps1"
   },
   "devDependencies": {
     "@electron/asar": "4.3.0",

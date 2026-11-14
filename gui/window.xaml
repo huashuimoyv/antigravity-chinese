@@ -65,7 +65,7 @@
               <TextBlock x:Name="StatusTitle" Text="正在识别客户端" FontSize="18" FontWeight="SemiBold" Foreground="#233442"/>
             </StackPanel>
             <TextBlock x:Name="StatusDetail" Text="首次打开只检查状态，不会安装补丁。" TextWrapping="Wrap" Foreground="#667984" Margin="18,8,14,0"/>
-            <TextBlock x:Name="VersionLabel" Text="支持版本 2.12.2" Foreground="#667984" FontSize="12" Margin="18,8,0,0"/>
+            <TextBlock x:Name="VersionLabel" Text="正在检测客户端版本…" Foreground="#667984" FontSize="12" Margin="18,8,0,0"/>
           </StackPanel>
           <Button x:Name="CheckButton" Grid.Column="1" Content="重新检查" VerticalAlignment="Center"/>
         </Grid>

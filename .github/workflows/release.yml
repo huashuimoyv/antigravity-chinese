@@ -1,0 +1,137 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '发布标签（例如 v1.0.13），留空则默认 v<package.json version>'
+        required: false
+        type: string
+      prerelease:
+        description: '标记为预发布版 (Prerelease)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build & Publish Portable Release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run test suite
+        run: npm test
+
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_TAG: ${{ inputs.tag || '' }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease || false }}
+        run: |
+          set -euo pipefail
+          node scripts/release.js resolve-meta >> "$GITHUB_OUTPUT"
+
+      - name: Build and verify portable release package
+        shell: powershell
+        env:
+          PKG_VERSION: ${{ steps.meta.outputs.pkg_version }}
+        run: |
+          & (Join-Path $PWD 'pack.ps1') -Version "$env:PKG_VERSION"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify checksums and compute SHA-256
+        id: checksum
+        shell: bash
+        env:
+          PKG_VERSION: ${{ steps.meta.outputs.pkg_version }}
+        run: |
+          set -euo pipefail
+          ZIP_NAME="antigravity-chinese-v${PKG_VERSION}-portable.zip"
+          (cd dist && sha256sum -c checksums-sha256.txt)
+          SHA256="$(sha256sum "dist/${ZIP_NAME}" | awk '{print $1}')"
+          echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.meta.outputs.tag }}
+          PKG_VERSION: ${{ steps.meta.outputs.pkg_version }}
+          ZIP_NAME: ${{ steps.checksum.outputs.zip_name }}
+          SHA256: ${{ steps.checksum.outputs.sha256 }}
+          PRERELEASE: ${{ steps.meta.outputs.prerelease }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch || 'main' }}
+        run: |
+          set -euo pipefail
+          ZIP_PATH="dist/${ZIP_NAME}"
+          CHECKSUM_PATH="dist/checksums-sha256.txt"
+          NOTES_FILE="dist/release-notes-${RELEASE_TAG}.md"
+          EXISTING_FILE="dist/existing-notes-${RELEASE_TAG}.md"
+          MERGED_FILE="dist/merged-notes-${RELEASE_TAG}.md"
+
+          node scripts/release.js write-notes \
+            --version "$PKG_VERSION" \
+            --zip "$ZIP_PATH" \
+            --sha256 "$SHA256" \
+            --out "$NOTES_FILE"
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$ZIP_PATH" "$CHECKSUM_PATH" --clobber
+            gh release view "$RELEASE_TAG" --json body --jq '.body // ""' > "$EXISTING_FILE"
+            node scripts/release.js upsert-notes \
+              --notes "$NOTES_FILE" \
+              --existing "$EXISTING_FILE" \
+              --out "$MERGED_FILE"
+            EDIT_ARGS=(
+              "$RELEASE_TAG"
+              --title "Antigravity 本地汉化与增强套件 ${RELEASE_TAG}"
+              --notes-file "$MERGED_FILE"
+            )
+            if [ "$PRERELEASE" = "true" ]; then
+              EDIT_ARGS+=(--prerelease)
+            fi
+            gh release edit "${EDIT_ARGS[@]}"
+          else
+            CREATE_ARGS=(
+              "$RELEASE_TAG"
+              "$ZIP_PATH"
+              "$CHECKSUM_PATH"
+              --title "Antigravity 本地汉化与增强套件 ${RELEASE_TAG}"
+              --notes-file "$NOTES_FILE"
+              --generate-notes
+            )
+            if [ "$PRERELEASE" = "true" ]; then
+              CREATE_ARGS+=(--prerelease)
+            fi
+            if ! git rev-parse -q --verify "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+              CREATE_ARGS+=(--target "${DEFAULT_BRANCH}")
+            fi
+            gh release create "${CREATE_ARGS[@]}"
+          fi

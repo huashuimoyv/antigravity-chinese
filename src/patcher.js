@@ -252,4 +252,5 @@ function deployIcon(target) {
   } catch {}
 }
 
-module.exports = { locate, assertStopped, inspect, build, status, change, MARKER };
+const SUPPORTED_VERSIONS = Object.freeze(Object.keys(SUPPORTED));
+module.exports = { locate, assertStopped, inspect, build, status, change, MARKER, SUPPORTED_VERSIONS };

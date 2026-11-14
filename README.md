@@ -8,7 +8,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%20Only-red?logo=windows)](https://www.microsoft.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.12-339933?logo=node.js)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-35%20Passed-brightgreen)](test/)
+[![Tests](https://img.shields.io/badge/Tests-41%20Passed-brightgreen)](test/)
 
 </div>
 
@@ -73,7 +73,7 @@ node cli.js install --path "D:\Apps\Antigravity"
 
 ## 自动化测试验证
 
-项目内置 36 项自动化测试套件（其中 35 项离线单元测试全部通过，1 项本机实包验证在 CI/未指定实包路径时默认跳过；覆盖 ASAR 规范互认、自适应兼容、中文标题守卫、代理注入、图标注入、DOM 保护及容灾恢复）：
+项目内置 42 项自动化测试套件（其中 41 项离线单元测试全部通过，1 项本机实包验证在 CI/未指定实包路径时默认跳过；覆盖 ASAR 规范互认、自适应兼容、中文标题守卫、代理注入、图标注入、DOM 保护、发布流水线与归档校验及容灾恢复）：
 
 ```powershell
 npm test
