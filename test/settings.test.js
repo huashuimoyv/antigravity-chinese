@@ -384,4 +384,103 @@ test('translates Antigravity 2.32.1 SSH Remote, Desktop Mic, Browser Actuation a
   assert.equal(doc.querySelector('.monaco-editor code').textContent, 'Connect to SSH Host');
 });
 
+test('translates slash command menu, mention menu chrome, hover cards, and protects filenames/paths', async t => {
+  const html = `
+    <div id="composer" contenteditable="true" role="textbox">Compact the conversation now (summarize history to free up the context window).</div>
+    <div data-testid="side-question-tab-empty">
+      <span>Ask a side question without interrupting the main conversation</span>
+    </div>
+    <div id="slash-menu" role="listbox" aria-label="Mentions" data-mention-menu="">
+      <div>
+        <div id="typeahead-item-0" role="option" aria-selected="true">
+          <div>
+            <span data-testid="menu-option-label"><span>compact</span></span>
+            <span data-testid="menu-option-description" dir="auto"><span>Compact the conversation now (summarize history to free up the context window).</span></span>
+          </div>
+        </div>
+        <div id="typeahead-item-1" role="option" aria-selected="false">
+          <div>
+            <span data-testid="menu-option-label"><span>btw</span></span>
+            <span data-testid="menu-option-description" dir="auto"><span>Ask a quick question without interrupting the main conversation.</span></span>
+          </div>
+        </div>
+        <div id="typeahead-item-2" role="option" aria-selected="false">
+          <div data-testid="menu-section-header">Recently opened</div>
+          <div>
+            <span data-testid="menu-option-label"><span>README.md</span></span>
+            <span data-testid="menu-option-description" dir="rtl"><span>src/Settings</span></span>
+          </div>
+        </div>
+        <div id="typeahead-item-3" role="option" aria-selected="false">
+          <div data-testid="menu-section-header">Browse</div>
+          <div data-testid="menu-category-row">
+            <span data-testid="menu-option-label"><span>Directories</span></span>
+            <span data-testid="menu-option-description" dir="auto"><span>Search workspace folders</span></span>
+          </div>
+        </div>
+        <div id="typeahead-item-4" role="option" aria-selected="false">
+          <div>
+            <span data-testid="menu-option-label"><span>Searching as user@example.com</span></span>
+            <span data-testid="menu-option-description" dir="auto"><span>@drive is currently unavailable</span></span>
+            <span data-testid="menu-option-trailing-label">from CLI</span>
+          </div>
+        </div>
+        <div id="empty-row"><span>No matching results</span></div>
+      </div>
+      <div role="status" aria-label="Searching" data-testid="mention-menu-searching-row">
+        <span>Searching…</span>
+      </div>
+      <div data-testid="mention-menu-footer">
+        <kbd>esc</kbd><span>to exit</span>
+      </div>
+    </div>
+    <div data-hover-card-popup="">
+      <div data-mention-menu="">
+        <div data-testid="hover-card-title"><span>chrome-devtools</span></div>
+        <div data-testid="hover-card-subtitle">Chrome DevTools</div>
+        <div data-testid="hover-card-description">Uses Chrome DevTools via MCP for efficient debugging, troubleshooting and browser automation. Use when debugging web pages, automating browser interactions, analyzing performance, or inspecting network requests. This skill does not apply to \`--slim\` mode (MCP configuration).</div>
+      </div>
+    </div>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:1234/' });
+  t.after(() => dom.window.close());
+  runtime(dom.window, dictionary);
+  await pause();
+
+  const doc = dom.window.document;
+  assert.equal(doc.querySelector('#composer').textContent, 'Compact the conversation now (summarize history to free up the context window).');
+  assert.equal(doc.querySelector('[data-testid="side-question-tab-empty"] span').textContent, '在不打断主对话的情况下提出副问题');
+
+  const menu = doc.querySelector('#slash-menu');
+  assert.equal(menu.getAttribute('aria-label'), '提及菜单');
+  assert.equal(doc.querySelector('#typeahead-item-0 [data-testid="menu-option-label"]').textContent, 'compact');
+  assert.equal(doc.querySelector('#typeahead-item-0 [data-testid="menu-option-description"]').textContent, '立即压缩当前对话（总结历史记录以释放上下文窗口）。');
+  assert.equal(doc.querySelector('#typeahead-item-1 [data-testid="menu-option-description"]').textContent, '在不打断主对话的情况下快速提问。');
+
+  assert.equal(doc.querySelector('#typeahead-item-2 [data-testid="menu-section-header"]').textContent, '最近打开');
+  assert.equal(doc.querySelector('#typeahead-item-2 [data-testid="menu-option-label"]').textContent, 'README.md');
+  assert.equal(doc.querySelector('#typeahead-item-2 [data-testid="menu-option-description"]').textContent, 'src/Settings');
+
+  assert.equal(doc.querySelector('#typeahead-item-3 [data-testid="menu-section-header"]').textContent, '浏览');
+  assert.equal(doc.querySelector('#typeahead-item-3 [data-testid="menu-option-label"]').textContent, '目录');
+  assert.equal(doc.querySelector('#typeahead-item-3 [data-testid="menu-option-description"]').textContent, '搜索工作区文件夹');
+
+  assert.equal(doc.querySelector('#typeahead-item-4 [data-testid="menu-option-label"]').textContent, '正在以 user@example.com 身份搜索');
+  assert.equal(doc.querySelector('#typeahead-item-4 [data-testid="menu-option-description"]').textContent, '@drive 当前不可用');
+  assert.equal(doc.querySelector('#typeahead-item-4 [data-testid="menu-option-trailing-label"]').textContent, '来自 CLI');
+
+  assert.equal(doc.querySelector('#empty-row span').textContent, '无匹配结果');
+  const searchingRow = doc.querySelector('[data-testid="mention-menu-searching-row"]');
+  assert.equal(searchingRow.getAttribute('aria-label'), '正在搜索');
+  assert.equal(searchingRow.querySelector('span').textContent, '正在搜索…');
+  assert.equal(doc.querySelector('[data-testid="mention-menu-footer"] kbd').textContent, 'esc');
+  assert.equal(doc.querySelector('[data-testid="mention-menu-footer"] span').textContent, '退出');
+
+  assert.equal(doc.querySelector('[data-testid="hover-card-title"] span').textContent, 'chrome-devtools');
+  assert.equal(
+    doc.querySelector('[data-testid="hover-card-description"]').textContent,
+    '通过 Chrome DevTools MCP 高效调试网页、自动化浏览器交互、分析性能与排查网络请求（不适用于 --slim 模式）。'
+  );
+});
+
 

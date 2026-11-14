@@ -15,7 +15,7 @@ function localize(window, dictionary) {
     '[data-project-id]', '[data-workspace-id]', '[data-local-zh="off"]'
   ].join(',');
   // Deliberately exclude generic div/span/body text: it may be a conversation or filename.
-  const controls = 'button,[role="button"],[role="menuitem"],[role="menuitemradio"],[role="tab"],[role="tooltip"],label,option,[role="option"],h1,h2,h3,h4,h5,h6,[role="heading"],a,[role="radio"],[role="checkbox"],[role="switch"],summary,[data-testid="ssh-machine-switcher-status"]';
+  const controls = 'button,[role="button"],[role="menuitem"],[role="menuitemradio"],[role="tab"],[role="tooltip"],label,option,[role="option"],[data-mention-menu],[data-testid="side-question-tab-empty"],h1,h2,h3,h4,h5,h6,[role="heading"],a,[role="radio"],[role="checkbox"],[role="switch"],summary,[data-testid="ssh-machine-switcher-status"]';
   const panels = new WeakSet();
   let settingsPanel = null;
   const navigation = new Set([
@@ -125,6 +125,16 @@ function localize(window, dictionary) {
     if (micDeniedHostMatch) return value.replace(/\S[\s\S]*\S|\S/, `对 ${micDeniedHostMatch[1]} 的麦克风访问已被拒绝。请退出并重新打开应用以重新请求授权。`);
     const micNotAllowedHostMatch = key.match(/^Microphone\s+access\s+for\s+(.+)\s+wasn't\s+allowed\.$/);
     if (micNotAllowedHostMatch) return value.replace(/\S[\s\S]*\S|\S/, `未允许 ${micNotAllowedHostMatch[1]} 访问麦克风。`);
+    const searchingAsMatch = key.match(/^Searching\s+as\s+(.+)$/);
+    if (searchingAsMatch) return value.replace(/\S[\s\S]*\S|\S/, `正在以 ${searchingAsMatch[1]} 身份搜索`);
+    const unavailableTriggerMatch = key.match(/^(@\S+)\s+is\s+currently\s+unavailable$/);
+    if (unavailableTriggerMatch) return value.replace(/\S[\s\S]*\S|\S/, `${unavailableTriggerMatch[1]} 当前不可用`);
+    const unableSearchTriggerMatch = key.match(/^Unable\s+to\s+search\s+(@\S+)$/);
+    if (unableSearchTriggerMatch) return value.replace(/\S[\s\S]*\S|\S/, `无法搜索 ${unableSearchTriggerMatch[1]}`);
+    const signInToPluginMatch = key.match(/^Sign\s+in\s+to\s+(.+)$/);
+    if (signInToPluginMatch) return value.replace(/\S[\s\S]*\S|\S/, `登录到 ${signInToPluginMatch[1]}`);
+    const reconnectPluginMatch = key.match(/^Reconnect\s+(.+)$/);
+    if (reconnectPluginMatch) return value.replace(/\S[\s\S]*\S|\S/, `重新连接 ${reconnectPluginMatch[1]}`);
     return value;
   }
   function visit(node) {

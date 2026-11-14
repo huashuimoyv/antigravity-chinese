@@ -8,7 +8,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%20Only-red?logo=windows)](https://www.microsoft.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.12-339933?logo=node.js)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-34%20Passed-brightgreen)](test/)
+[![Tests](https://img.shields.io/badge/Tests-35%20Passed-brightgreen)](test/)
 
 </div>
 
@@ -22,7 +22,7 @@
 
 ## 核心特性
 
-- **界面全量精校汉化**：全面覆盖设置面板、原生菜单、模型选择、语音模式与桌面麦克风权限、内置浏览器与自动化权限、计划审阅策略，以及 2.31.x 双界面布局与 2.32.x 原生 SSH 远程开发工作流；Monaco 代码区、xterm 终端与会话正文严格隔离保护，绝不误翻代码。
+- **界面全量精校汉化**：全面覆盖 `/` 斜杠命令与 `@` 提及弹窗及悬停卡片、设置面板、原生菜单、模型选择、语音模式与桌面麦克风权限、内置浏览器与自动化权限、计划审阅策略，以及 2.31.x 双界面布局与 2.32.x 原生 SSH 远程开发工作流；Monaco 代码区、xterm 终端与会话正文严格隔离保护，绝不误翻代码。
 - **侧边栏小标题中文守护**：自动拦截后台英文大写单词标题，根据首轮提问提炼凝练的中文标题并写入本地数据库，保持会话列表整洁地道。
 - **顶栏用量与上下文实时监控**：直观展示当前对话的 Token 占用比例、三段式彩色图形进度条、Prompt 缓存命中率及多模型额度状态。
 - **本地网络代理与窗口记忆**：支持一键注入本地网络代理（默认 127.0.0.1:7890）；自动记忆窗口尺寸与最大化状态，避免重启后打回原形。
@@ -41,7 +41,7 @@
 
 ### 方法一：便携桌面版（推荐）
 
-1. 前往 [Releases 页面](https://github.com/huashuimoyv/antigravity-chinese/releases/latest) 下载最新版 `antigravity-chinese-v1.0.12-portable.zip`；
+1. 前往 [Releases 页面](https://github.com/huashuimoyv/antigravity-chinese/releases/latest) 下载最新版 `antigravity-chinese-v1.0.13-portable.zip`；
 2. 解压到任意目录，双击运行 **`启动汉化工具.exe`**；
 3. 点击界面的 **“一键启动 Antigravity”**（或 “更新补丁并启动”），工具会自动完成打补丁并拉起客户端。
 
@@ -73,7 +73,7 @@ node cli.js install --path "D:\Apps\Antigravity"
 
 ## 自动化测试验证
 
-项目内置 35 项自动化测试套件（其中 34 项离线单元测试全部通过，1 项本机实包验证在 CI/未指定实包路径时默认跳过；覆盖 ASAR 规范互认、自适应兼容、中文标题守卫、代理注入、图标注入、DOM 保护及容灾恢复）：
+项目内置 36 项自动化测试套件（其中 35 项离线单元测试全部通过，1 项本机实包验证在 CI/未指定实包路径时默认跳过；覆盖 ASAR 规范互认、自适应兼容、中文标题守卫、代理注入、图标注入、DOM 保护及容灾恢复）：
 
 ```powershell
 npm test
