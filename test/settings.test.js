@@ -301,4 +301,87 @@ test('translates Antigravity 2.31.0 coordinator agents, side questions, browser 
   assert.equal(doc.querySelector('#plan-inline span:nth-of-type(3)').textContent, '以让智能体生成计划。');
 });
 
+test('translates Antigravity 2.32.1 SSH Remote, Desktop Mic, Browser Actuation and new command labels', async t => {
+  const html = `
+    <div id="commands">
+      <button>Download Diagnostics</button>
+      <button>Toggle Between Light/Dark Themes</button>
+      <button>Connect to SSH Host…</button>
+      <button>Stop SSH Server…</button>
+      <button>Switch to This Computer</button>
+      <button>Previous Side Panel Tab</button>
+      <button>Next Side Panel Tab</button>
+      <div data-testid="ssh-machine-switcher-status">Connected to dev-box</div>
+    </div>
+    <div id="ssh-dialog" role="dialog" data-testid="ssh-connect-dialog">
+      <h2>Connect to SSH Host</h2>
+      <p id="ssh-desc">Enter [user@]host[:port], or pick a host from your SSH config.<span> Then create the project in its window.</span></p>
+      <input data-testid="ssh-connect-host-input" aria-label="SSH host" placeholder="user@host:port" />
+      <button id="ssh-connect-btn">Connecting…</button>
+      <div id="ssh-progress">Connecting to dev-box…</div>
+      <div id="ssh-config-row">
+        <span>SSH config: </span>
+        <span id="ssh-default-cfg">~/.ssh/config (default)</span>
+        <button>Choose File…</button>
+        <button>Use Default</button>
+      </div>
+      <div id="ssh-cfg-group">SSH Config (work_config)</div>
+      <button id="ssh-hidden-toggle">3 hidden hosts</button>
+      <button id="ssh-forget-btn" aria-label="Remove dev-box from Recent">Remove</button>
+      <button id="ssh-hide-btn" aria-label="Hide dev-box from this list">Hide</button>
+      <div id="ssh-notice">This window's agents, files, and terminals are on dev-box.</div>
+      <div id="ssh-err"><span>Couldn't connect to </span><span>dev-box</span></div>
+    </div>
+    <div id="mic-and-settings" role="dialog">
+      <p id="mic-denied-host">Microphone access for dev-box was denied. Quit and reopen the app to be asked again.</p>
+      <p id="mic-off-win">Microphone off in Settings &gt; Privacy &amp; security &gt; Microphone.</p>
+      <p id="settings-err">Failed to parse settings. Fix and restart.</p>
+      <button id="copy-err" title="Copy error messages">Copy</button>
+      <h3>Browser Actuation Permissions</h3>
+      <div>Execute URLs</div>
+      <div>Allow/deny agent browser actuation access to specific URLs.</div>
+      <div>Download files</div>
+      <div>Allow/deny agent browser file downloads from specific sites.</div>
+      <pre class="monaco-editor"><code>Connect to SSH Host</code></pre>
+    </div>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:1234/' });
+  t.after(() => dom.window.close());
+  runtime(dom.window, dictionary);
+  await pause();
+
+  const doc = dom.window.document;
+  const cmds = doc.querySelectorAll('#commands > button');
+  assert.equal(cmds[0].textContent, '下载诊断信息');
+  assert.equal(cmds[1].textContent, '切换浅色/深色主题');
+  assert.equal(cmds[2].textContent, '连接到 SSH 主机…');
+  assert.equal(cmds[3].textContent, '停止 SSH 服务器…');
+  assert.equal(cmds[4].textContent, '切换到本机电脑');
+  assert.equal(cmds[5].textContent, '上一个侧边栏标签页');
+  assert.equal(cmds[6].textContent, '下一个侧边栏标签页');
+  assert.equal(doc.querySelector('[data-testid="ssh-machine-switcher-status"]').textContent, '已连接到 dev-box');
+
+  assert.equal(doc.querySelector('#ssh-dialog h2').textContent, '连接到 SSH 主机');
+  assert.equal(doc.querySelector('#ssh-connect-btn').textContent, '连接中…');
+  assert.equal(doc.querySelector('[data-testid="ssh-connect-host-input"]').getAttribute('aria-label'), 'SSH 主机');
+  assert.equal(doc.querySelector('#ssh-progress').textContent, '正在连接到 dev-box…');
+  assert.equal(doc.querySelector('#ssh-config-row span:nth-of-type(1)').textContent, 'SSH 配置： ');
+  assert.equal(doc.querySelector('#ssh-default-cfg').textContent, '~/.ssh/config（默认）');
+  assert.equal(doc.querySelector('#ssh-config-row button:nth-of-type(1)').textContent, '选择文件…');
+  assert.equal(doc.querySelector('#ssh-config-row button:nth-of-type(2)').textContent, '使用默认');
+  assert.equal(doc.querySelector('#ssh-cfg-group').textContent, 'SSH 配置 (work_config)');
+  assert.equal(doc.querySelector('#ssh-hidden-toggle').textContent, '3 个已隐藏主机');
+  assert.equal(doc.querySelector('#ssh-forget-btn').getAttribute('aria-label'), '从最近记录中移除 dev-box');
+  assert.equal(doc.querySelector('#ssh-hide-btn').getAttribute('aria-label'), '从此列表中隐藏 dev-box');
+  assert.equal(doc.querySelector('#ssh-notice').textContent, '此窗口的智能体、文件和终端均位于 dev-box。');
+  assert.equal(doc.querySelector('#ssh-err span:first-child').textContent, '无法连接到 ');
+
+  assert.equal(doc.querySelector('#mic-denied-host').textContent, '对 dev-box 的麦克风访问已被拒绝。请退出并重新打开应用以重新请求授权。');
+  assert.equal(doc.querySelector('#mic-off-win').textContent, '麦克风已在 Windows 设置 > 隐私和安全性 > 麦克风中关闭。');
+  assert.equal(doc.querySelector('#settings-err').textContent, '设置解析失败，请修复后重启。');
+  assert.equal(doc.querySelector('#copy-err').getAttribute('title'), '复制错误信息');
+  assert.equal(doc.querySelector('#mic-and-settings h3').textContent, '浏览器自动化权限');
+  assert.equal(doc.querySelector('.monaco-editor code').textContent, 'Connect to SSH Host');
+});
+
 

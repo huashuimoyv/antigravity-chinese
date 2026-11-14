@@ -15,7 +15,7 @@ function localize(window, dictionary) {
     '[data-project-id]', '[data-workspace-id]', '[data-local-zh="off"]'
   ].join(',');
   // Deliberately exclude generic div/span/body text: it may be a conversation or filename.
-  const controls = 'button,[role="button"],[role="menuitem"],[role="menuitemradio"],[role="tab"],[role="tooltip"],label,option,[role="option"],h1,h2,h3,h4,h5,h6,[role="heading"],a,[role="radio"],[role="checkbox"],[role="switch"],summary';
+  const controls = 'button,[role="button"],[role="menuitem"],[role="menuitemradio"],[role="tab"],[role="tooltip"],label,option,[role="option"],h1,h2,h3,h4,h5,h6,[role="heading"],a,[role="radio"],[role="checkbox"],[role="switch"],summary,[data-testid="ssh-machine-switcher-status"]';
   const panels = new WeakSet();
   let settingsPanel = null;
   const navigation = new Set([
@@ -101,6 +101,30 @@ function localize(window, dictionary) {
       const scope = outsideMatch[1].replace(/projects?/i, '项目').replace(/workspaces?/i, '工作区');
       return value.replace(/\S[\s\S]*\S|\S/, `${scope}外部会话的设置。`);
     }
+    const sshConnectingMatch = key.match(/^Connecting\s+to\s+(.+?)(?:\u2026|\.\.\.)$/i);
+    if (sshConnectingMatch) return value.replace(/\S[\s\S]*\S|\S/, `正在连接到 ${sshConnectingMatch[1]}…`);
+    const sshFailedHostMatch = key.match(/^Couldn't\s+connect\s+to\s+(.+)$/i);
+    if (sshFailedHostMatch) return value.replace(/\S[\s\S]*\S|\S/, `无法连接到 ${sshFailedHostMatch[1]}`);
+    const sshConfigGroupMatch = key.match(/^SSH\s+Config\s+\((.+)\)$/);
+    if (sshConfigGroupMatch) return value.replace(/\S[\s\S]*\S|\S/, `SSH 配置 (${sshConfigGroupMatch[1]})`);
+    const sshConfigLineMatch = key.match(/^SSH\s+config:\s+(.+)$/i);
+    if (sshConfigLineMatch) return value.replace(/\S[\s\S]*\S|\S/, `SSH 配置：${sshConfigLineMatch[1]}`);
+    const hiddenHostsMatch = key.match(/^(\d+)\s+hidden\s+hosts?$/i);
+    if (hiddenHostsMatch) return value.replace(/\S[\s\S]*\S|\S/, `${hiddenHostsMatch[1]} 个已隐藏主机`);
+    const removeRecentMatch = key.match(/^Remove\s+(.+)\s+from\s+Recent$/);
+    if (removeRecentMatch) return value.replace(/\S[\s\S]*\S|\S/, `从最近记录中移除 ${removeRecentMatch[1]}`);
+    const hideHostMatch = key.match(/^Hide\s+(.+)\s+from\s+this\s+list$/);
+    if (hideHostMatch) return value.replace(/\S[\s\S]*\S|\S/, `从此列表中隐藏 ${hideHostMatch[1]}`);
+    const showHostMatch = key.match(/^Show\s+(.+)\s+in\s+the\s+list\s+again$/);
+    if (showHostMatch) return value.replace(/\S[\s\S]*\S|\S/, `重新在列表中显示 ${showHostMatch[1]}`);
+    const sshConnectedMatch = key.match(/^Connected\s+to\s+(.+)$/);
+    if (sshConnectedMatch) return value.replace(/\S[\s\S]*\S|\S/, `已连接到 ${sshConnectedMatch[1]}`);
+    const sshNoticeMatch = key.match(/^This\s+window's\s+agents,\s+files,\s+and\s+terminals\s+are\s+on\s+(.+)\.$/);
+    if (sshNoticeMatch) return value.replace(/\S[\s\S]*\S|\S/, `此窗口的智能体、文件和终端均位于 ${sshNoticeMatch[1]}。`);
+    const micDeniedHostMatch = key.match(/^Microphone\s+access\s+for\s+(.+)\s+was\s+denied\.\s+Quit\s+and\s+reopen\s+the\s+app\s+to\s+be\s+asked\s+again\.$/);
+    if (micDeniedHostMatch) return value.replace(/\S[\s\S]*\S|\S/, `对 ${micDeniedHostMatch[1]} 的麦克风访问已被拒绝。请退出并重新打开应用以重新请求授权。`);
+    const micNotAllowedHostMatch = key.match(/^Microphone\s+access\s+for\s+(.+)\s+wasn't\s+allowed\.$/);
+    if (micNotAllowedHostMatch) return value.replace(/\S[\s\S]*\S|\S/, `未允许 ${micNotAllowedHostMatch[1]} 访问麦克风。`);
     return value;
   }
   function visit(node) {
