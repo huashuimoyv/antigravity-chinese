@@ -1,6 +1,6 @@
 # Antigravity 本地汉化与增强套件 (Windows 专属)
 
-**专为 Google Antigravity (2.12.2 ~ 2.32.1+) 打造的高安全、纯离线、逐字节可还原的 Windows 本地汉化与功能增强工具。**
+**专为 Google Antigravity (2.12.2 ~ 2.32.2+) 打造的高安全、纯离线、逐字节可还原的 Windows 本地汉化与功能增强工具。**
 
 <div align="center">
 
@@ -8,7 +8,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%20Only-red?logo=windows)](https://www.microsoft.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.12-339933?logo=node.js)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-41%20Passed-brightgreen)](test/)
+[![Tests](https://img.shields.io/badge/Tests-42%20Passed-brightgreen)](test/)
 
 </div>
 
@@ -35,13 +35,13 @@
 
 ### 环境要求
 - **操作系统**：Windows 10 / Windows 11（**不支持 macOS**）
-- **客户端**：Antigravity 桌面客户端（官方认证支持 2.12.2 ~ 2.32.1 及后续微版本）
+- **客户端**：Antigravity 桌面客户端（官方认证支持 2.12.2 ~ 2.32.2 及后续微版本）
 
 ---
 
 ### 方法一：便携桌面版（推荐）
 
-1. 前往 [Releases 页面](https://github.com/huashuimoyv/antigravity-chinese/releases/latest) 下载最新版 `antigravity-chinese-v1.0.13-portable.zip`；
+1. 前往 [Releases 页面](https://github.com/huashuimoyv/antigravity-chinese/releases/latest) 下载最新版 `antigravity-chinese-v1.0.14-portable.zip`；
 2. 解压到任意目录，双击运行 **`启动汉化工具.exe`**；
 3. 点击界面的 **“一键启动 Antigravity”**（或 “更新补丁并启动”），工具会自动完成打补丁并拉起客户端。
 
@@ -73,7 +73,7 @@ node cli.js install --path "D:\Apps\Antigravity"
 
 ## 自动化测试验证
 
-项目内置 42 项自动化测试套件（其中 41 项离线单元测试全部通过，1 项本机实包验证在 CI/未指定实包路径时默认跳过；覆盖 ASAR 规范互认、自适应兼容、中文标题守卫、代理注入、图标注入、DOM 保护、发布流水线与归档校验及容灾恢复）：
+项目内置 43 项自动化测试套件（其中 42 项离线单元测试全部通过，1 项本机实包验证在 CI/未指定实包路径时默认跳过；覆盖 ASAR 规范互认、自适应兼容、中文标题守卫、代理注入、图标注入、DOM 保护、发布流水线与归档校验及容灾恢复）：
 
 ```powershell
 npm test

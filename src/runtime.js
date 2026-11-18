@@ -15,7 +15,7 @@ function localize(window, dictionary) {
     '[data-project-id]', '[data-workspace-id]', '[data-local-zh="off"]'
   ].join(',');
   // Deliberately exclude generic div/span/body text: it may be a conversation or filename.
-  const controls = 'button,[role="button"],[role="menuitem"],[role="menuitemradio"],[role="tab"],[role="tooltip"],label,option,[role="option"],[data-mention-menu],[data-testid="side-question-tab-empty"],h1,h2,h3,h4,h5,h6,[role="heading"],a,[role="radio"],[role="checkbox"],[role="switch"],summary,[data-testid="ssh-machine-switcher-status"]';
+  const controls = 'button,[role="button"],[role="menuitem"],[role="menuitemradio"],[role="tab"],[role="tooltip"],label,option,[role="option"],[data-mention-menu],[data-testid="side-question-tab-empty"],[data-testid="agent-browser-cross-window-banner"],h1,h2,h3,h4,h5,h6,[role="heading"],a,[role="radio"],[role="checkbox"],[role="switch"],summary,[data-testid="ssh-machine-switcher-status"]';
   const panels = new WeakSet();
   let settingsPanel = null;
   const navigation = new Set([
@@ -135,6 +135,14 @@ function localize(window, dictionary) {
     if (signInToPluginMatch) return value.replace(/\S[\s\S]*\S|\S/, `登录到 ${signInToPluginMatch[1]}`);
     const reconnectPluginMatch = key.match(/^Reconnect\s+(.+)$/);
     if (reconnectPluginMatch) return value.replace(/\S[\s\S]*\S|\S/, `重新连接 ${reconnectPluginMatch[1]}`);
+    const availableCreditsMatch = key.match(/^Available\s+AI\s+Credits:\s*(.+)$/i);
+    if (availableCreditsMatch) return value.replace(/\S[\s\S]*\S|\S/, `可用 AI 积分：${availableCreditsMatch[1]}`);
+    const yourPlanMatch = key.match(/^Your\s+Plan:\s*(.+)$/i);
+    if (yourPlanMatch) return value.replace(/\S[\s\S]*\S|\S/, `当前方案：${yourPlanMatch[1]}`);
+    const manageAppSettingsMatch = key.match(/^Manage\s+(.+?)\s+app\s+settings\.$/i);
+    if (manageAppSettingsMatch) return value.replace(/\S[\s\S]*\S|\S/, `管理 ${manageAppSettingsMatch[1]} 应用设置。`);
+    const resumeCommentDraftsMatch = key.match(/^Resume\s+(\d+)\s+comment\s+drafts?$/i);
+    if (resumeCommentDraftsMatch) return value.replace(/\S[\s\S]*\S|\S/, `恢复 ${resumeCommentDraftsMatch[1]} 条评论草稿`);
     return value;
   }
   function visit(node) {
@@ -857,6 +865,63 @@ function localize(window, dictionary) {
     };
 
     renderAll();
+    if (window.__AG_CTX_OBSERVER__) window.__AG_CTX_OBSERVER__.disconnect();
+    const isOwnUiNode = node => node && node.nodeType === 1 &&
+      (node.id === 'ag-titlebar-context-bar' || node.id === 'ag-titlebar-context-popover');
+    const contextDomObserver = new window.MutationObserver(records => {
+      let shouldRender = false;
+      for (const r of records) {
+        const el = r.target.nodeType === 1 ? r.target : r.target.parentElement;
+        if (!el) continue;
+        if (el.closest('#ag-titlebar-context-bar, #ag-titlebar-context-popover, .monaco-editor, .xterm, .prose, [data-message-id]')) {
+          continue;
+        }
+        if (r.type === 'childList' &&
+            (r.addedNodes.length > 0 || r.removedNodes.length > 0) &&
+            Array.from(r.addedNodes).every(isOwnUiNode) &&
+            Array.from(r.removedNodes).every(isOwnUiNode)) {
+          continue;
+        }
+        if (el.closest('[data-testid="model-selector-trigger"], [data-testid="conversation-row-sidebar"]')) {
+          shouldRender = true;
+          break;
+        }
+        if (!document.getElementById('ag-titlebar-context-bar') && el.closest('header')) {
+          shouldRender = true;
+          break;
+        }
+        if (r.type === 'childList') {
+          for (const n of r.addedNodes) {
+            if (n.nodeType === 1 && (
+              n.matches?.('[data-testid="model-selector-trigger"], [data-testid="conversation-row-sidebar"], header') ||
+              n.querySelector?.('[data-testid="model-selector-trigger"], [data-testid="conversation-row-sidebar"], [data-testid="titlebar-more-actions"]')
+            )) {
+              shouldRender = true;
+              break;
+            }
+          }
+          if (shouldRender) break;
+          for (const n of r.removedNodes) {
+            if (n.nodeType === 1 && (n.id === 'ag-titlebar-context-bar' || n.querySelector?.('#ag-titlebar-context-bar'))) {
+              shouldRender = true;
+              break;
+            }
+          }
+          if (shouldRender) break;
+        }
+      }
+      if (shouldRender) renderAll();
+    });
+    if (document.documentElement) {
+      contextDomObserver.observe(document.documentElement, {
+        subtree: true,
+        childList: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ['aria-label', 'data-selected', 'data-cascade-id']
+      });
+      window.__AG_CTX_OBSERVER__ = contextDomObserver;
+    }
     if (window.__AG_CTX_TIMER__) window.clearInterval(window.__AG_CTX_TIMER__);
     window.__AG_CTX_TIMER__ = window.setInterval(() => {
       const activeCid = getActiveCascadeId();
@@ -872,7 +937,6 @@ function localize(window, dictionary) {
         if (bar && !bar.contains(e.target) && (!pop || !pop.contains(e.target))) {
           cardExpanded = false;
           renderAll(true);
-          return;
         }
       }
       window.setTimeout(() => renderAll(), 120);

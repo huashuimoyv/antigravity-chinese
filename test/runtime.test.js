@@ -4,7 +4,19 @@ const assert = require('node:assert/strict');
 const { JSDOM } = require('jsdom');
 const runtime = require('../src/runtime');
 const dictionary = require('../dict/zh-CN.json');
-const delay = () => new Promise(resolve => setTimeout(resolve, 100));
+const delay = (ms = 100) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function waitFor(predicate, { timeout = 2000, interval = 10, message = 'condition timed out' } = {}) {
+  const deadline = Date.now() + timeout;
+  while (true) {
+    const result = predicate();
+    if (result) return result;
+    if (Date.now() >= deadline) {
+      throw new Error(message);
+    }
+    await delay(interval);
+  }
+}
 
 async function page(t, html, url = 'https://127.0.0.1:12345/') {
   const dom = new JSDOM(html, { url });
@@ -43,10 +55,10 @@ test('observes dynamic text, attributes, inserted controls and bursts without lo
   for (let i = 0; i < 550; i++) {
     const item = w.document.createElement('button'); item.textContent = 'Settings'; w.document.body.append(item);
   }
-  await delay();
-  assert.equal(button.textContent, '取消');
-  assert.equal(button.title, '关闭');
-  assert.equal(w.document.body.lastChild.textContent, '设置');
+  await waitFor(
+    () => button.textContent === '取消' && button.title === '关闭' && w.document.body.lastChild.textContent === '设置',
+    { message: 'dynamic mutations should translate' }
+  );
   let mutations = 0;
   const observer = new w.MutationObserver(records => { mutations += records.length; });
   observer.observe(w.document.body, { subtree: true, childList: true, characterData: true, attributes: true });
@@ -127,10 +139,14 @@ test('mounts titlebar context monitor widget and renders token breakdown and cac
   });
 
   runtime(dom.window, dictionary);
-  await delay();
-  await delay();
 
-  const bar = dom.window.document.getElementById('ag-titlebar-context-bar');
+  const bar = await waitFor(
+    () => {
+      const el = dom.window.document.getElementById('ag-titlebar-context-bar');
+      return el && /20\.0k \/ 256k/.test(el.textContent) ? el : null;
+    },
+    { message: 'context monitor widget should mount and render token breakdown' }
+  );
   assert.ok(bar, 'context monitor widget should be mounted');
   assert.match(bar.textContent, /20\.0k \/ 256k/);
   assert.match(bar.textContent, /缓存 75%/);
@@ -204,10 +220,14 @@ test('renders model quota limits in titlebar and popover, preferring 5h quota fo
   };
 
   runtime(dom.window, dictionary);
-  await delay();
-  await delay();
 
-  const bar = dom.window.document.getElementById('ag-titlebar-context-bar');
+  const bar = await waitFor(
+    () => {
+      const el = dom.window.document.getElementById('ag-titlebar-context-bar');
+      return el && /5h额度 96%/.test(el.textContent) && /缓存 90%/.test(el.textContent) ? el : null;
+    },
+    { message: 'context monitor widget should mount and render initial 5h quota' }
+  );
   assert.ok(bar, 'context monitor widget should be mounted');
   assert.match(bar.textContent, /5h额度 96%/, 'should render 5h limit for normal Gemini model');
   assert.match(bar.textContent, /缓存 90%/, 'should retain cache hit ratio');
@@ -217,13 +237,16 @@ test('renders model quota limits in titlebar and popover, preferring 5h quota fo
   trigger.textContent = 'Gemini 4 Argon 中';
 
   // Click widget to open popover and force refresh
-  const toggleBtn = bar.querySelector('[data-ag-action="toggle-popover"]');
-  toggleBtn.click();
-  await delay();
+  bar.querySelector('[data-ag-action="toggle-popover"]').click();
+  const pop = await waitFor(
+    () => {
+      const p = dom.window.document.getElementById('ag-titlebar-context-popover');
+      return /G4周额 61%/.test(bar.textContent) && p && p.style.display !== 'none' ? p : null;
+    },
+    { message: 'should switch to weekly limit for Gemini 4 Argon and show popover' }
+  );
 
   assert.match(bar.textContent, /G4周额 61%/, 'should switch to weekly limit for Gemini 4 Argon');
-
-  const pop = dom.window.document.getElementById('ag-titlebar-context-popover');
   assert.ok(pop && pop.style.display !== 'none', 'popover should be visible');
   assert.match(pop.textContent, /模型用量额度概览/);
   assert.match(pop.textContent, /Gemini 4 Argon/);
@@ -272,8 +295,7 @@ test('automatically localizes English sidebar conversation titles to Chinese via
   };
 
   runtime(dom.window, dictionary);
-  await delay();
-  await delay();
+  await waitFor(() => updatedTitle.length > 0, { message: 'should extract and push Chinese title via RPC' });
 
   assert.equal(updatedTitle, '毕业生推荐表里的奖项和证书可以写什么', 'should extract and push Chinese title from user prompt');
 });
@@ -345,36 +367,79 @@ test('treats Gemini 4 Hydrogen as Gemini Models quota pool rather than Argon wee
   };
 
   runtime(dom.window, dictionary);
-  await delay();
-  await delay();
 
-  const bar = dom.window.document.getElementById('ag-titlebar-context-bar');
+  const bar = await waitFor(
+    () => {
+      const el = dom.window.document.getElementById('ag-titlebar-context-bar');
+      return el && /5h额度 89%/.test(el.textContent) ? el : null;
+    },
+    { message: 'context monitor widget should mount with Hydrogen 5h quota' }
+  );
   assert.ok(bar, 'context monitor widget should be mounted');
   assert.match(bar.textContent, /5h额度 89%/, 'Gemini 4 Hydrogen must use Gemini 5h quota instead of Argon 20%');
   assert.doesNotMatch(bar.textContent, /G4周额/, 'Gemini 4 Hydrogen must not show G4周额');
 
-  // Switch to Argon then back to Hydrogen Extra
+  // Switch to Argon: DOM observer should update quota badge deterministically without fixed sleeps
   const trigger = dom.window.document.querySelector('[data-testid="model-selector-trigger"]');
   trigger.textContent = 'Gemini 4 Argon High';
-  const toggleBtn = bar.querySelector('[data-ag-action="toggle-popover"]');
-  toggleBtn.click();
-  await delay();
+  await waitFor(
+    () => /G4周额 20%/.test(bar.textContent),
+    { message: 'Gemini 4 Argon should update bar to Argon weekly quota' }
+  );
   assert.match(bar.textContent, /G4周额 20%/, 'Gemini 4 Argon should show Argon weekly quota');
 
-  trigger.textContent = 'Gemini 4 Hydrogen Extra';
-  toggleBtn.click();
-  await delay();
-  assert.match(bar.textContent, /5h额度 89%/, 'switching back to Hydrogen Extra should restore 5h quota');
+  // Open popover while on Argon, then switch back to Hydrogen Extra via outside click + model change
+  bar.querySelector('[data-ag-action="toggle-popover"]').click();
+  await waitFor(
+    () => {
+      const p = dom.window.document.getElementById('ag-titlebar-context-popover');
+      return p && p.style.display !== 'none' && /Gemini 4 Argon/.test(p.textContent);
+    },
+    { message: 'clicking toggle button should open popover for Argon' }
+  );
 
-  // Open popover and verify weekly limit row is also shown
-  toggleBtn.click();
-  await delay();
-  const pop = dom.window.document.getElementById('ag-titlebar-context-popover');
-  assert.ok(pop && pop.style.display !== 'none');
+  trigger.click();
+  trigger.textContent = 'Gemini 4 Hydrogen Extra';
+  await waitFor(
+    () => {
+      const p = dom.window.document.getElementById('ag-titlebar-context-popover');
+      return /5h额度 89%/.test(bar.textContent) && p && p.style.display === 'none';
+    },
+    { message: 'switching back to Hydrogen Extra should close popover on outside click and restore 5h quota' }
+  );
+  assert.match(bar.textContent, /5h额度 89%/, 'switching back to Hydrogen Extra should restore 5h quota');
+  assert.doesNotMatch(bar.textContent, /G4周额/, 'switching back to Hydrogen Extra must clear G4周额');
+
+  // Re-query toggle button because bar.innerHTML re-renders replace child nodes; toggle open & closed
+  bar.querySelector('[data-ag-action="toggle-popover"]').click();
+  const pop = await waitFor(
+    () => {
+      const p = dom.window.document.getElementById('ag-titlebar-context-popover');
+      return p && p.style.display !== 'none' && /Gemini 系列 · Hydrogen\/Flash \(5小时\)/.test(p.textContent) ? p : null;
+    },
+    { message: 'clicking fresh toggle button should open popover with Hydrogen quota details' }
+  );
   assert.match(pop.textContent, /Gemini 系列 · Hydrogen\/Flash \(5小时\)/);
   assert.match(pop.textContent, /Gemini 系列 · Hydrogen\/Flash \(周额度\)/);
   assert.match(pop.textContent, /57%/);
   assert.match(pop.textContent, /gemini-4-hydrogen/);
+
+  bar.querySelector('[data-ag-action="toggle-popover"]').click();
+  await waitFor(
+    () => pop.style.display === 'none',
+    { message: 'clicking fresh toggle button again should close popover' }
+  );
+
+  // Switch to an empty conversation and re-open popover to verify empty-conversation support
+  emptyMetadata = true;
+  const row = dom.window.document.querySelector('[data-testid="conversation-row-sidebar"]');
+  row.setAttribute('data-cascade-id', 'test-cid-empty');
+  bar.querySelector('[data-ag-action="toggle-popover"]').click();
+  await waitFor(
+    () => /新对话/.test(bar.textContent) && /5h额度 89%/.test(bar.textContent) && pop.style.display !== 'none',
+    { message: 'empty conversation should still render 新对话, active 5h quota, and quota popover' }
+  );
+  assert.match(pop.textContent, /模型用量额度概览/);
 });
 
 

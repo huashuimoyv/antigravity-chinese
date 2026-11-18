@@ -483,4 +483,98 @@ test('translates slash command menu, mention menu chrome, hover cards, and prote
   );
 });
 
+test('translates Antigravity 2.32.2 settings sections, shortcuts, notifications, models/credits, remote control and cross-window banner', async t => {
+  const html = `
+    <div>Settings</div>
+    <div class="settings-modal-container">
+      <aside>
+        <button data-testid="settings-nav-item-Account"><span>Account</span></button>
+        <div>General</div>
+        <div>Application</div>
+        <div>Appearance</div>
+        <div>Shortcuts</div>
+        <div>Notifications</div>
+        <div>Models</div>
+        <div>Customizations</div>
+        <div>Browser</div>
+      </aside>
+      <main>
+        <h2>Application</h2>
+        <div>Manage Antigravity app settings.</div>
+        <h3>Updater</h3>
+        <div>Automatically prompt you to restart the app when a new update is available. When disabled, you can check for updates manually from the app menu.</div>
+        <h3>Models &amp; Usage</h3>
+        <div>Manage your model quota and credits.</div>
+        <div>Your Plan: Google AI Pro</div>
+        <div>Your Plan: Enterprise</div>
+        <div>Available AI Credits: 250</div>
+        <button>See Activity</button>
+        <button>Get More AI Credits</button>
+        <button title="Refresh quota and credits data" aria-label="Refresh quota and credits data">Refresh</button>
+        <div role="option">Gemini 3.1 Flash Image</div>
+        <div role="option">Gemini 3 Pro Image</div>
+        <div role="option">Gemini 2.5 Flash Image</div>
+        <div title="Custom models are only supported on Linux machines.">Add Model</div>
+        <h3>Notifications</h3>
+        <div>Manage your notification preferences.</div>
+        <h3>Sound</h3>
+        <div>Set the volume of agent sounds.</div>
+        <input type="range" aria-label="Chime volume" value="80">
+        <h3>Shortcuts</h3>
+        <div>Keyboard shortcuts for quick navigation and control.</div>
+        <input placeholder="Search shortcuts">
+        <button aria-label="Reset all shortcuts to defaults">Reset All to Defaults</button>
+        <div>Edit Shortcut</div>
+        <div>Enter always submits. This adds a second shortcut.</div>
+        <h3>Remote Control</h3>
+        <div>Enable Remote Control</div>
+        <div>Manage your conversations from the companion website.</div>
+        <input placeholder="Enter device name...">
+        <div>Controls whether terminal commands require your approval before running. Note: A change to this setting will only apply to new messages sent to the agent. In-progress responses will use the previous setting value.</div>
+        <div>Block all browser JavaScript execution.</div>
+        <div class="monaco-editor"><code>Available AI Credits: 250</code></div>
+      </main>
+    </div>
+    <div data-testid="agent-browser-cross-window-banner" role="status">
+      <span>Browser is currently being operated by this conversation in another Hub window</span>
+    </div>
+    <button data-testid="webview-url-bar-draft-reopen" aria-label="Resume 2 comment drafts" title="Resume comment draft">Open</button>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:1234/' });
+  t.after(() => dom.window.close());
+  runtime(dom.window, dictionary);
+  await pause();
+
+  const doc = dom.window.document;
+  const mainText = doc.querySelector('main').textContent;
+  assert.match(mainText, /管理 Antigravity 应用设置。/);
+  assert.match(mainText, /更新器/);
+  assert.match(mainText, /检测到新版本更新时自动提示重启应用。/);
+  assert.match(mainText, /模型与用量/);
+  assert.match(mainText, /当前方案：Google AI Pro/);
+  assert.match(mainText, /当前方案：Enterprise/);
+  assert.match(mainText, /可用 AI 积分：250/);
+  assert.match(mainText, /查看明细/);
+  assert.match(mainText, /获取更多 AI 积分/);
+  assert.match(mainText, /Gemini 3\.1 Flash（图像）/);
+  assert.match(mainText, /Gemini 3 Pro（图像）/);
+  assert.match(mainText, /Gemini 2\.5 Flash（图像）/);
+  assert.match(mainText, /提示音/);
+  assert.match(mainText, /调整智能体提示音的音量。/);
+  assert.match(mainText, /用于快速导航与控制的键盘快捷键。/);
+  assert.match(mainText, /全部恢复默认/);
+  assert.match(mainText, /编辑快捷键/);
+  assert.match(mainText, /通过配套网页端远程管理你的对话。/);
+  assert.match(mainText, /正在进行中的回复将继续沿用原有设置。/);
+  assert.match(mainText, /阻止所有浏览器 JavaScript 脚本执行。/);
+  assert.equal(doc.querySelector('input[type="range"]').getAttribute('aria-label'), '提示音音量');
+  assert.equal(doc.querySelector('input[placeholder]').placeholder, '搜索快捷键');
+  assert.equal(doc.querySelectorAll('input')[2].placeholder, '输入设备名称…');
+  assert.equal(doc.querySelector('[data-testid="agent-browser-cross-window-banner"] span').textContent, '当前对话正在另一个 Hub 窗口中操作浏览器');
+  const draftBtn = doc.querySelector('[data-testid="webview-url-bar-draft-reopen"]');
+  assert.equal(draftBtn.getAttribute('aria-label'), '恢复 2 条评论草稿');
+  assert.equal(draftBtn.getAttribute('title'), '恢复评论草稿');
+  assert.equal(doc.querySelector('.monaco-editor code').textContent, 'Available AI Credits: 250');
+});
+
 
