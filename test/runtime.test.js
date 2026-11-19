@@ -442,6 +442,98 @@ test('treats Gemini 4 Hydrogen as Gemini Models quota pool rather than Argon wee
   assert.match(pop.textContent, /模型用量额度概览/);
 });
 
+test('routes Gemini 4 Carbon and Claude Opus 5.5 Max to their proper quota pools', async t => {
+  const html = `
+    <html>
+      <head></head>
+      <body>
+        <div data-testid="conversation-row-sidebar" data-selected="true" data-cascade-id="test-cid-carbon"></div>
+        <button data-testid="model-selector-trigger">Gemini 4 Carbon High</button>
+        <header>
+          <div>
+            <button data-testid="titlebar-more-actions">More</button>
+          </div>
+        </header>
+      </body>
+    </html>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:12345/' });
+  t.after(() => dom.window.close());
+  dom.window.__APP_CONFIG__ = { csrfToken: '12345678-1234-1234-1234-123456789abc' };
+  dom.window.fetch = async (url) => {
+    if (url.includes('RetrieveUserQuotaSummary')) {
+      return {
+        ok: true,
+        json: async () => ({
+          response: {
+            groups: [
+              {
+                displayName: 'Gemini Models',
+                buckets: [
+                  { bucketId: 'gemini-weekly', displayName: 'Weekly Limit Remaining', window: 'weekly', remainingFraction: 0.72, resetTime: new Date(Date.now() + 86400000).toISOString() },
+                  { bucketId: 'gemini-5h', displayName: 'Five Hour Limit Remaining', window: '5h', remainingFraction: 0.91, resetTime: new Date(Date.now() + 7200000).toISOString() }
+                ]
+              },
+              {
+                displayName: 'Gemini 4 Argon',
+                buckets: [
+                  { bucketId: 'gemini-argon-wtu-weekly', displayName: 'Gemini 4 Argon Weekly Limit', window: 'weekly', remainingFraction: 0.15, resetTime: new Date(Date.now() + 172800000).toISOString() }
+                ]
+              },
+              {
+                displayName: 'Claude and GPT models',
+                buckets: [
+                  { bucketId: 'claude-5h', displayName: 'Five Hour Limit Remaining', window: '5h', remainingFraction: 0.64, resetTime: new Date(Date.now() + 7200000).toISOString() }
+                ]
+              }
+            ]
+          }
+        })
+      };
+    }
+    return {
+      ok: true,
+      json: async () => ({
+        generatorMetadata: [{
+          chatModel: {
+            usage: { model: 'MODEL_PLACEHOLDER_M670', inputTokens: 1500, cacheReadTokens: 8500, outputTokens: 120 },
+            chatStartMetadata: {
+              contextWindowMetadata: { maxContextTokens: 256000, estimatedTokensUsed: 10000 }
+            }
+          }
+        }]
+      })
+    };
+  };
+
+  runtime(dom.window, dictionary);
+  const bar = await waitFor(
+    () => {
+      const el = dom.window.document.getElementById('ag-titlebar-context-bar');
+      return el && /5h额度 91%/.test(el.textContent) ? el : null;
+    },
+    { message: 'Gemini 4 Carbon should use Gemini Models 5h quota pool' }
+  );
+  assert.doesNotMatch(bar.textContent, /G4周额/);
+
+  const trigger = dom.window.document.querySelector('[data-testid="model-selector-trigger"]');
+  trigger.textContent = 'Claude Opus 5.5 Max';
+  await waitFor(
+    () => /5h额度 64%/.test(bar.textContent),
+    { message: 'Claude Opus 5.5 Max should use Claude 5h quota pool' }
+  );
+
+  bar.querySelector('[data-ag-action="toggle-popover"]').click();
+  const pop = await waitFor(
+    () => {
+      const p = dom.window.document.getElementById('ag-titlebar-context-popover');
+      return p && p.style.display !== 'none' && /gemini-4-carbon/.test(p.textContent) ? p : null;
+    },
+    { message: 'popover should resolve M670 to gemini-4-carbon' }
+  );
+  assert.match(pop.textContent, /64%/);
+});
+
 
 
 

@@ -2,6 +2,12 @@
 
 本文件记录 Antigravity Windows 本地中文汉化与增强套件各版本的核心变更；标签触发 GitHub Actions 发布流水线时会自动提取对应版本段落写入 Release 说明。
 
+## v1.0.15
+
+- **客户端认证扩展**：解析并正式认证适配 Antigravity `2.33.0`（更新 `dist/preload.js` SHA-256 哈希白名单并校验 `dist/menu.js` 一致性）。
+- **新模型全覆盖与额度池加固**：新增 **Gemini 4 Carbon**（低/中/高推理）、**Claude Opus 5.5 (Max)**、**Claude Sonnet 5.5 (Max)**、**Gemini 3.8 Flash**（低/中推理）与 **Gemini 3.1 Flash Lite** 译名；同步加固额度分组识别逻辑，确保 Carbon 与 Hydrogen 稳定归属 Gemini 模型 5 小时/周额度池、Claude Max 归属 Claude 额度池。
+- **2.33.0 新特性汉化**：新增 `68` 条精确词条（词库扩充至 `1341` 条）与 `6` 组动态规则，覆盖内置浏览器 **浏览数据与按站点 Cookie 管理**、**VS Code / AGY 快捷键方案切换**、**精选插件包 (Bundles) 与审查弹窗**、**副问题插回主对话**、额度重置倒计时及语音听写提示，并补充对应回归单元测试。
+
 ## v1.0.14
 
 - **客户端认证扩展**：官方认证支持 Antigravity `2.32.2`（复核 `dist/preload.js` 与 `dist/menu.js` SHA-256 哈希无漂移）。

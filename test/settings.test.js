@@ -577,4 +577,93 @@ test('translates Antigravity 2.32.2 settings sections, shortcuts, notifications,
   assert.equal(doc.querySelector('.monaco-editor code').textContent, 'Available AI Credits: 250');
 });
 
+test('translates Antigravity 2.33.0 new models, browsing data, keybinding schemes, bundles and side question controls', async t => {
+  const html = `
+    <div>Settings</div>
+    <div class="settings-modal-container">
+      <aside>
+        <button data-testid="settings-nav-item-Account"><span>Account</span></button>
+        <div>General</div>
+        <div>Application</div>
+        <div>Appearance</div>
+        <div>Shortcuts</div>
+        <div>Models</div>
+        <div>Customizations</div>
+        <div>Browser</div>
+      </aside>
+      <main>
+        <h2>Browser</h2>
+        <div>Enable Browser Agent</div>
+        <div>Browsing Data</div>
+        <div>Clear history, cookies and site data from the built-in browser, or manage cookies for each site.</div>
+        <button>Manage</button>
+        <button>Clear</button>
+        <div>Cookies by Site</div>
+        <input placeholder="Search sites...">
+        <div>No sites have cookies in the built-in browser.</div>
+        <h2>Shortcuts</h2>
+        <div>Manage your keybinding scheme and customize shortcuts in VS Code.</div>
+        <div>Keybinding Scheme</div>
+        <div>Choose between non-colliding VS Code defaults or standalone Antigravity chords.</div>
+        <div>VS Code Default</div>
+        <div>Honors standard VS Code shortcuts without collisions (e.g. Ctrl+L Focus Input, Ctrl+Shift+L New Conversation, Ctrl+Shift+A Picker, Ctrl+Shift+, Settings).</div>
+        <div>Antigravity (AGY) Style</div>
+        <button>Customize Shortcuts</button>
+        <h2>Customizations</h2>
+        <div>Bundles</div>
+        <div>Curated sets of plugins for common workflows and roles.</div>
+        <button>Add bundle dev-pack</button>
+        <div>This plugin in dev-pack may have looser code review. Review its contents before adding the bundle.</div>
+        <button>Review contents</button>
+        <button>Add anyway</button>
+        <div>Resets in 2d 3h</div>
+        <div>Resets in &lt;1m</div>
+        <div role="option"><span>Gemini 4 Carbon (High)</span><span>91% left</span></div>
+        <div role="option"><span>Claude Opus 5.5 (Max)</span><span>64% left</span></div>
+        <div role="option"><span>Claude Sonnet 5.5 (Max)</span></div>
+        <div role="option"><span>Gemini 3.8 Flash (Low)</span></div>
+        <div role="option"><span>Gemini 3.1 Flash Lite</span></div>
+        <div class="monaco-editor"><code>Gemini 4 Carbon (High)</code></div>
+      </main>
+    </div>
+    <button data-testid="model-selector-trigger">3 models selected</button>
+    <button data-testid="side-question-insert-to-main" aria-label="Insert into main conversation" title="Unarchive the main conversation to insert">Insert</button>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:1234/' });
+  t.after(() => dom.window.close());
+  runtime(dom.window, dictionary);
+  await pause();
+
+  const doc = dom.window.document;
+  const mainText = doc.querySelector('main').textContent;
+  assert.match(mainText, /启用浏览器智能体/);
+  assert.match(mainText, /浏览数据/);
+  assert.match(mainText, /清除内置浏览器的历史记录、Cookie 与站点数据/);
+  assert.match(mainText, /按站点管理 Cookie/);
+  assert.match(mainText, /内置浏览器中暂无保存 Cookie 的站点。/);
+  assert.match(mainText, /管理你的快捷键方案并在 VS Code 中自定义快捷键。/);
+  assert.match(mainText, /快捷键方案/);
+  assert.match(mainText, /VS Code 默认/);
+  assert.match(mainText, /Antigravity \(AGY\) 风格/);
+  assert.match(mainText, /自定义快捷键/);
+  assert.match(mainText, /精选插件包/);
+  assert.match(mainText, /添加插件包 dev-pack/);
+  assert.match(mainText, /dev-pack 中的此插件代码审查可能较宽松/);
+  assert.match(mainText, /查看内容/);
+  assert.match(mainText, /仍然添加/);
+  assert.match(mainText, /2d 3h后重置/);
+  assert.match(mainText, /不足 1 分钟后重置/);
+  assert.match(mainText, /Gemini 4 Carbon（高推理）/);
+  assert.match(mainText, /Claude Opus 5\.5（最高）/);
+  assert.match(mainText, /Claude Sonnet 5\.5（最高）/);
+  assert.match(mainText, /Gemini 3\.8 Flash（低推理）/);
+  assert.match(mainText, /Gemini 3\.1 Flash Lite（轻量版）/);
+  assert.equal(doc.querySelector('input[placeholder]').placeholder, '搜索站点…');
+  assert.equal(doc.querySelector('[data-testid="model-selector-trigger"]').textContent, '已选择 3 个模型');
+  const insertBtn = doc.querySelector('[data-testid="side-question-insert-to-main"]');
+  assert.equal(insertBtn.getAttribute('aria-label'), '插入到主对话');
+  assert.equal(insertBtn.getAttribute('title'), '请先取消归档主对话后再插入');
+  assert.equal(doc.querySelector('.monaco-editor code').textContent, 'Gemini 4 Carbon (High)');
+});
+
 

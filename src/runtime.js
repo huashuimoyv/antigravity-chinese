@@ -143,6 +143,21 @@ function localize(window, dictionary) {
     if (manageAppSettingsMatch) return value.replace(/\S[\s\S]*\S|\S/, `管理 ${manageAppSettingsMatch[1]} 应用设置。`);
     const resumeCommentDraftsMatch = key.match(/^Resume\s+(\d+)\s+comment\s+drafts?$/i);
     if (resumeCommentDraftsMatch) return value.replace(/\S[\s\S]*\S|\S/, `恢复 ${resumeCommentDraftsMatch[1]} 条评论草稿`);
+    const modelsSelectedMatch = key.match(/^(\d+)\s+models\s+selected$/i);
+    if (modelsSelectedMatch) return value.replace(/\S[\s\S]*\S|\S/, `已选择 ${modelsSelectedMatch[1]} 个模型`);
+    const resetsInMatch = key.match(/^Resets\s+in\s+(.+)$/i);
+    if (resetsInMatch) {
+      const span = resetsInMatch[1] === '<1m' ? '不足 1 分钟' : resetsInMatch[1];
+      return value.replace(/\S[\s\S]*\S|\S/, `${span}后重置`);
+    }
+    const addBundleMatch = key.match(/^Add\s+bundle\s+(.+)$/);
+    if (addBundleMatch) return value.replace(/\S[\s\S]*\S|\S/, `添加插件包 ${addBundleMatch[1]}`);
+    const addingPluginsFromMatch = key.match(/^Adding\s+plugins\s+from\s+(.+)$/);
+    if (addingPluginsFromMatch) return value.replace(/\S[\s\S]*\S|\S/, `正在从 ${addingPluginsFromMatch[1]} 添加插件`);
+    const bundleSingleCautionMatch = key.match(/^This\s+plugin\s+in\s+(.+?)\s+may\s+have\s+looser\s+code\s+review\.\s+Review\s+its\s+contents\s+before\s+adding\s+the\s+bundle\.$/);
+    if (bundleSingleCautionMatch) return value.replace(/\S[\s\S]*\S|\S/, `${bundleSingleCautionMatch[1]} 中的此插件代码审查可能较宽松，添加插件包前请先查看其内容。`);
+    const bundleMultiCautionMatch = key.match(/^These\s+plugins\s+in\s+(.+?)\s+may\s+have\s+looser\s+code\s+review\.\s+Review\s+their\s+contents\s+before\s+adding\s+the\s+bundle\.$/);
+    if (bundleMultiCautionMatch) return value.replace(/\S[\s\S]*\S|\S/, `${bundleMultiCautionMatch[1]} 中的这些插件代码审查可能较宽松，添加插件包前请先查看其内容。`);
     return value;
   }
   function visit(node) {
@@ -502,7 +517,7 @@ function localize(window, dictionary) {
           const pct = Math.round((Number(b.remainingFraction) || 0) * 100);
           const countdown = formatResetCountdown(b.resetTime);
           const item = { name: b.displayName, pct, countdown, rawFraction: b.remainingFraction };
-          if (dName.includes('gemini 4') || bId.includes('argon')) {
+          if (dName.includes('argon') || (dName.includes('gemini 4') && !dName.includes('hydrogen') && !dName.includes('carbon')) || bId.includes('argon')) {
             res.argonWeekly = item;
           } else if (dName.includes('claude') || dName.includes('gpt') || bId.includes('3p')) {
             if (b.window === '5h' || bId.includes('5h')) res.claude5h = item;
