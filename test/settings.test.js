@@ -666,4 +666,199 @@ test('translates Antigravity 2.33.0 new models, browsing data, keybinding scheme
   assert.equal(doc.querySelector('.monaco-editor code').textContent, 'Gemini 4 Carbon (High)');
 });
 
+test('translates model selector popup, Neon/GPT-OSS/badge tags, tooltips, View Usage popover, Turbo trigger and input placeholder', async t => {
+  const html = `
+    <div data-testid="model-selector-panel">
+      <div data-testid="model-selector-header">Model</div>
+      <div role="menuitem">
+        <span>Gemini 4 Neon</span><span>Medium</span>
+        <div><span>New</span></div>
+      </div>
+      <div role="menuitem" data-testid="model-selector-item">
+        <span>Orchestrator (Neon)</span>
+        <div><span>New</span></div>
+      </div>
+      <div role="menuitem" data-testid="model-selector-item">
+        <span>Orchestrator (Argon)</span>
+        <div><span>New</span></div>
+      </div>
+      <div role="menuitem" data-testid="model-selector-item">
+        <span>GPT-OSS 120B (Medium)</span>
+        <div><span>Notice</span></div>
+      </div>
+      <div role="menuitem" data-testid="model-selector-item">
+        <span>Gemini 4 Carbon</span>
+        <div><span>Unavailable</span></div>
+      </div>
+      <div role="menuitem">
+        <span>View Usage</span>
+      </div>
+    </div>
+    <div role="tooltip">
+      <div>Neon that may offload routine steps to Hydrogen. Same Neon-level quality, fewer tokens used.</div>
+    </div>
+    <div role="menu">
+      <div class="select-none">
+        <div><span>Usage</span><span>Refreshing...</span></div>
+        <div>
+          <span>Gemini Models</span>
+          <span>93% left</span>
+          <span>Five Hour Limit Remaining, resets in 4h 33m</span>
+        </div>
+      </div>
+    </div>
+    <div data-testid="agent-input-box">
+      <p class="pointer-events-none">Ask anything, @ to mention, / for actions</p>
+      <div role="textbox" contenteditable="true">Ask anything, @ to mention, / for actions</div>
+      <button data-testid="model-selector-trigger"><span>Orchestrator (Neon)</span></button>
+      <button data-testid="permissions-selector-trigger"><span>Turbo</span></button>
+    </div>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:1234/' });
+  t.after(() => dom.window.close());
+  runtime(dom.window, dictionary);
+  await pause();
+
+  const doc = dom.window.document;
+  const panelText = doc.querySelector('[data-testid="model-selector-panel"]').textContent;
+  assert.match(panelText, /模型/);
+  assert.match(panelText, /Gemini 4 Neon中\s*新/);
+  assert.match(panelText, /编排协调员 \(Neon\)\s*新/);
+  assert.match(panelText, /编排协调员 \(Argon\)\s*新/);
+  assert.match(panelText, /GPT-OSS 120B（中推理）\s*提示/);
+  assert.match(panelText, /Gemini 4 Carbon\s*不可用/);
+  assert.match(panelText, /查看用量/);
+
+  assert.equal(
+    doc.querySelector('[role="tooltip"] div').textContent,
+    '可将常规步骤分流给 Hydrogen 处理的 Neon 编排器，兼顾同级质量与更低 Token 消耗。'
+  );
+  const usageMenuText = doc.querySelector('[role="menu"]').textContent;
+  assert.match(usageMenuText, /用量正在刷新…/);
+  assert.match(usageMenuText, /93% 剩余/);
+  assert.match(usageMenuText, /5 小时剩余限额，4h 33m后重置/);
+
+  assert.equal(
+    doc.querySelector('[data-testid="agent-input-box"] p.pointer-events-none').textContent,
+    '随便问点什么，@ 提及，/ 执行操作'
+  );
+  assert.equal(
+    doc.querySelector('[data-testid="agent-input-box"] [role="textbox"]').textContent,
+    'Ask anything, @ to mention, / for actions'
+  );
+  assert.equal(doc.querySelector('[data-testid="model-selector-trigger"]').textContent, '编排协调员 (Neon)');
+  assert.equal(doc.querySelector('[data-testid="permissions-selector-trigger"]').textContent, '极速');
+});
+
+test('translates Antigravity 2.34.0 orchestrator settings, thinking effort, sentence-case settings, sidebar customization and inline permission cards', async t => {
+  const html = `
+    <div>Settings</div>
+    <div class="settings-modal-container">
+      <aside>
+        <button data-testid="settings-nav-item-Account"><span>Account</span></button>
+        <div>General</div>
+        <div>Application</div>
+        <div>Appearance</div>
+        <div>Shortcuts</div>
+        <div>Models</div>
+        <div>Customizations</div>
+        <div>Browser</div>
+      </aside>
+      <main>
+        <h2>Input Box</h2>
+        <div>Queued messages</div>
+        <div>Send message</div>
+        <div>Choose which key sends a message in the chat composer.</div>
+        <div>Press Ctrl+Enter to send, Enter for a new line.</div>
+        <div>Enable terminal sandbox</div>
+        <div>Tool permissions</div>
+        <div>Security preset</div>
+        <h2>Orchestrator Settings</h2>
+        <div>Orchestrator Model</div>
+        <div>Executor Model</div>
+        <div>Select Sidebar Item 3</div>
+        <div class="monaco-editor"><code>Orchestrator Settings</code></div>
+      </main>
+    </div>
+    <div data-testid="model-selector-panel">
+      <div role="menuitem" data-testid="model-selector-orchestrator">
+        <span>Orchestrator</span>
+        <span data-testid="model-selector-orchestrator-model">The Orchestrator's own planner</span>
+      </div>
+    </div>
+    <div role="menu">
+      <div class="select-none">
+        <div data-testid="model-selector-effort-header">
+          <span>Thinking effort</span>
+          <span data-testid="model-selector-effort-info" role="img" aria-label="Controls how much time and quota the model spends reasoning before responding. Higher effort improves accuracy on hard problems, at the cost of slower responses and higher quota use.">i</span>
+        </div>
+      </div>
+    </div>
+    <div data-testid="customize-sidebar-modal">
+      <div>Group By</div>
+      <label>Auto Pin</label>
+      <div>Idle Conversations</div>
+      <label>Show Automation Conversations</label>
+      <div>Last Activity</div>
+      <div>Any time</div>
+      <div>7 days</div>
+    </div>
+    <div data-testid="inline-permission-card">
+      <div data-testid="inline-permission-unsandboxed-warning">
+        <span>Confirm the command is safe to run outside of the sandbox with full network and disk access.</span>
+      </div>
+      <button>Deny with note</button>
+    </div>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:1234/' });
+  t.after(() => dom.window.close());
+  runtime(dom.window, dictionary);
+  await pause();
+
+  const doc = dom.window.document;
+  const mainText = doc.querySelector('main').textContent;
+  assert.match(mainText, /输入框/);
+  assert.match(mainText, /排队消息/);
+  assert.match(mainText, /发送消息/);
+  assert.match(mainText, /选择在对话输入框中用于发送消息的按键。/);
+  assert.match(mainText, /按 Ctrl\+Enter 发送，按 Enter 换行。/);
+  assert.match(mainText, /启用终端沙盒/);
+  assert.match(mainText, /工具权限/);
+  assert.match(mainText, /安全预设/);
+  assert.match(mainText, /编排协调员设置/);
+  assert.match(mainText, /编排规划模型/);
+  assert.match(mainText, /执行模型/);
+  assert.match(mainText, /选择侧边栏第 3 项/);
+  assert.equal(doc.querySelector('.monaco-editor code').textContent, 'Orchestrator Settings');
+
+  const orchRow = doc.querySelector('[data-testid="model-selector-orchestrator"]');
+  assert.match(orchRow.textContent, /编排协调员/);
+  assert.match(orchRow.textContent, /编排器默认规划模型/);
+
+  const effortHeader = doc.querySelector('[data-testid="model-selector-effort-header"]');
+  assert.match(effortHeader.textContent, /思考深度/);
+  assert.equal(
+    doc.querySelector('[data-testid="model-selector-effort-info"]').getAttribute('aria-label'),
+    '控制模型在回复前用于深度推理的时间与配额。更高深度可提升难题准确率，但会增加响应耗时和配额消耗。'
+  );
+
+  const sidebarModalText = doc.querySelector('[data-testid="customize-sidebar-modal"]').textContent;
+  assert.match(sidebarModalText, /分组方式/);
+  assert.match(sidebarModalText, /自动置顶/);
+  assert.match(sidebarModalText, /空闲对话/);
+  assert.match(sidebarModalText, /显示自动化任务对话/);
+  assert.match(sidebarModalText, /最近活跃/);
+  assert.match(sidebarModalText, /不限时间/);
+  assert.match(sidebarModalText, /最近 7 天/);
+
+  assert.equal(
+    doc.querySelector('[data-testid="inline-permission-unsandboxed-warning"] span').textContent,
+    '请确认该命令可安全地在沙盒外运行（将拥有完整网络与磁盘访问权限）。'
+  );
+  assert.equal(
+    doc.querySelector('[data-testid="inline-permission-card"] button').textContent,
+    '拒绝并附注'
+  );
+});
+
 

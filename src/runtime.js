@@ -15,7 +15,7 @@ function localize(window, dictionary) {
     '[data-project-id]', '[data-workspace-id]', '[data-local-zh="off"]'
   ].join(',');
   // Deliberately exclude generic div/span/body text: it may be a conversation or filename.
-  const controls = 'button,[role="button"],[role="menuitem"],[role="menuitemradio"],[role="tab"],[role="tooltip"],label,option,[role="option"],[data-mention-menu],[data-testid="side-question-tab-empty"],[data-testid="agent-browser-cross-window-banner"],h1,h2,h3,h4,h5,h6,[role="heading"],a,[role="radio"],[role="checkbox"],[role="switch"],summary,[data-testid="ssh-machine-switcher-status"]';
+  const controls = 'button,[role="button"],[role="menuitem"],[role="menuitemradio"],[role="tab"],[role="tooltip"],label,option,[role="option"],[data-mention-menu],[data-testid="side-question-tab-empty"],[data-testid="agent-browser-cross-window-banner"],[data-testid="model-selector-panel"],[data-testid="agent-input-box"] p.pointer-events-none,[role="menu"] .select-none,[data-testid="inline-permission-unsandboxed-warning"],[data-testid="customize-sidebar-modal"],h1,h2,h3,h4,h5,h6,[role="heading"],a,[role="radio"],[role="checkbox"],[role="switch"],summary,[data-testid="ssh-machine-switcher-status"]';
   const panels = new WeakSet();
   let settingsPanel = null;
   const navigation = new Set([
@@ -145,10 +145,23 @@ function localize(window, dictionary) {
     if (resumeCommentDraftsMatch) return value.replace(/\S[\s\S]*\S|\S/, `恢复 ${resumeCommentDraftsMatch[1]} 条评论草稿`);
     const modelsSelectedMatch = key.match(/^(\d+)\s+models\s+selected$/i);
     if (modelsSelectedMatch) return value.replace(/\S[\s\S]*\S|\S/, `已选择 ${modelsSelectedMatch[1]} 个模型`);
+    const pctLeftMatch = key.match(/^(\d+(?:\.\d+)?)%\s+left$/i);
+    if (pctLeftMatch) return value.replace(/\S[\s\S]*\S|\S/, `${pctLeftMatch[1]}% 剩余`);
     const resetsInMatch = key.match(/^Resets\s+in\s+(.+)$/i);
     if (resetsInMatch) {
       const span = resetsInMatch[1] === '<1m' ? '不足 1 分钟' : resetsInMatch[1];
       return value.replace(/\S[\s\S]*\S|\S/, `${span}后重置`);
+    }
+    const quotaDetailResetMatch = key.match(/^(.+?),\s*resets\s+in\s+(.+)$/i);
+    if (quotaDetailResetMatch) {
+      const prefixKey = quotaDetailResetMatch[1].trim();
+      const prefix = Object.hasOwn(dictionary, prefixKey) ? dictionary[prefixKey] : prefixKey;
+      const span = quotaDetailResetMatch[2] === '<1m' ? '不足 1 分钟' : quotaDetailResetMatch[2];
+      return value.replace(/\S[\s\S]*\S|\S/, `${prefix}，${span}后重置`);
+    }
+    const offloadOrchestratorMatch = key.match(/^(.+?)\s+that\s+may\s+offload\s+routine\s+steps\s+to\s+(.+?)\.\s+Same\s+(.+?)-level\s+quality,\s+fewer\s+tokens\s+used\.$/i);
+    if (offloadOrchestratorMatch) {
+      return value.replace(/\S[\s\S]*\S|\S/, `可将常规步骤分流给 ${offloadOrchestratorMatch[2]} 处理的 ${offloadOrchestratorMatch[1]} 编排器，兼顾同级质量与更低 Token 消耗。`);
     }
     const addBundleMatch = key.match(/^Add\s+bundle\s+(.+)$/);
     if (addBundleMatch) return value.replace(/\S[\s\S]*\S|\S/, `添加插件包 ${addBundleMatch[1]}`);
@@ -158,6 +171,8 @@ function localize(window, dictionary) {
     if (bundleSingleCautionMatch) return value.replace(/\S[\s\S]*\S|\S/, `${bundleSingleCautionMatch[1]} 中的此插件代码审查可能较宽松，添加插件包前请先查看其内容。`);
     const bundleMultiCautionMatch = key.match(/^These\s+plugins\s+in\s+(.+?)\s+may\s+have\s+looser\s+code\s+review\.\s+Review\s+their\s+contents\s+before\s+adding\s+the\s+bundle\.$/);
     if (bundleMultiCautionMatch) return value.replace(/\S[\s\S]*\S|\S/, `${bundleMultiCautionMatch[1]} 中的这些插件代码审查可能较宽松，添加插件包前请先查看其内容。`);
+    const selectSidebarItemMatch = key.match(/^Select\s+Sidebar\s+Item\s+(\d+)$/i);
+    if (selectSidebarItemMatch) return value.replace(/\S[\s\S]*\S|\S/, `选择侧边栏第 ${selectSidebarItemMatch[1]} 项`);
     return value;
   }
   function visit(node) {
@@ -307,17 +322,52 @@ function localize(window, dictionary) {
     if (target) target.appendChild(style);
   }
 
+  function readCsrfToken(win, doc) {
+    try {
+      const cfgToken = win.__APP_CONFIG__ && typeof win.__APP_CONFIG__.csrfToken === 'string'
+        ? win.__APP_CONFIG__.csrfToken.trim()
+        : '';
+      if (cfgToken) return cfgToken;
+    } catch {}
+    try {
+      const stored = win.localStorage ? win.localStorage.getItem('agy_session_csrf_token') : null;
+      if (typeof stored === 'string' && stored.trim()) return stored.trim();
+    } catch {}
+    try {
+      const rawCookie = doc && typeof doc.cookie === 'string' ? doc.cookie : '';
+      if (rawCookie) {
+        for (const entry of rawCookie.split(';')) {
+          const part = entry.trim();
+          if (!part.startsWith('csrfToken=')) continue;
+          const rawVal = part.slice('csrfToken='.length).trim();
+          if (!rawVal) continue;
+          try {
+            const decoded = decodeURIComponent(rawVal).trim();
+            if (decoded) return decoded;
+          } catch {
+            return rawVal;
+          }
+        }
+      }
+    } catch {}
+    try {
+      const scripts = doc && doc.scripts
+        ? Array.from(doc.scripts).map(s => s.textContent || '').join('\n')
+        : (doc && doc.documentElement ? doc.documentElement.innerHTML : '');
+      const kvMatch = scripts.match(/["']?csrfToken["']?\s*:\s*["']([^"'\s]+)["']/i);
+      if (kvMatch && kvMatch[1]) return kvMatch[1];
+      const uuidMatch = scripts.match(/csrfToken\W+([0-9a-f-]{36})/i);
+      if (uuidMatch && uuidMatch[1]) return uuidMatch[1];
+    } catch {}
+    return null;
+  }
+
   function startContextMonitor(window, document) {
     if (window.__AG_CTX_MONITOR__) return;
     if (typeof window.fetch !== 'function') return;
     window.__AG_CTX_MONITOR__ = true;
 
-    const getCsrfToken = () => {
-      if (window.__APP_CONFIG__ && window.__APP_CONFIG__.csrfToken) return window.__APP_CONFIG__.csrfToken;
-      const scripts = document.scripts ? Array.from(document.scripts).map(s => s.textContent || '').join('\n') : (document.documentElement ? document.documentElement.innerHTML : '');
-      const match = scripts.match(/csrfToken\W+([0-9a-f-]{36})/i);
-      return match ? match[1] : null;
-    };
+    const getCsrfToken = () => readCsrfToken(window, document);
 
     const cache = new Map();
     const inflight = new Set();
@@ -343,7 +393,14 @@ function localize(window, dictionary) {
         }
       } catch {}
       const selectedRow = document.querySelector('[data-testid="conversation-row-sidebar"][data-selected="true"]');
-      return selectedRow ? selectedRow.getAttribute('data-cascade-id') : null;
+      if (selectedRow) {
+        const directId = selectedRow.getAttribute('data-cascade-id');
+        if (directId) return directId;
+        const parentId = selectedRow.closest('[data-sidebar-row-id]')?.getAttribute('data-sidebar-row-id');
+        if (parentId) return parentId;
+      }
+      const fallbackRow = document.querySelector('[data-sidebar-row-id][data-selected="true"]');
+      return fallbackRow ? fallbackRow.getAttribute('data-sidebar-row-id') : null;
     };
 
     const openTrajectoryDebugger = e => {
@@ -517,7 +574,7 @@ function localize(window, dictionary) {
           const pct = Math.round((Number(b.remainingFraction) || 0) * 100);
           const countdown = formatResetCountdown(b.resetTime);
           const item = { name: b.displayName, pct, countdown, rawFraction: b.remainingFraction };
-          if (dName.includes('argon') || (dName.includes('gemini 4') && !dName.includes('hydrogen') && !dName.includes('carbon')) || bId.includes('argon')) {
+          if (dName.includes('argon') || (dName.includes('gemini 4') && !dName.includes('hydrogen') && !dName.includes('carbon') && !dName.includes('neon')) || bId.includes('argon')) {
             res.argonWeekly = item;
           } else if (dName.includes('claude') || dName.includes('gpt') || bId.includes('3p')) {
             if (b.window === '5h' || bId.includes('5h')) res.claude5h = item;
@@ -897,7 +954,7 @@ function localize(window, dictionary) {
             Array.from(r.removedNodes).every(isOwnUiNode)) {
           continue;
         }
-        if (el.closest('[data-testid="model-selector-trigger"], [data-testid="conversation-row-sidebar"]')) {
+        if (el.closest('[data-testid="model-selector-trigger"], [data-testid="conversation-row-sidebar"], [data-sidebar-row-id]')) {
           shouldRender = true;
           break;
         }
@@ -908,8 +965,8 @@ function localize(window, dictionary) {
         if (r.type === 'childList') {
           for (const n of r.addedNodes) {
             if (n.nodeType === 1 && (
-              n.matches?.('[data-testid="model-selector-trigger"], [data-testid="conversation-row-sidebar"], header') ||
-              n.querySelector?.('[data-testid="model-selector-trigger"], [data-testid="conversation-row-sidebar"], [data-testid="titlebar-more-actions"]')
+              n.matches?.('[data-testid="model-selector-trigger"], [data-testid="conversation-row-sidebar"], [data-sidebar-row-id], header') ||
+              n.querySelector?.('[data-testid="model-selector-trigger"], [data-testid="conversation-row-sidebar"], [data-sidebar-row-id], [data-testid="titlebar-more-actions"]')
             )) {
               shouldRender = true;
               break;
@@ -933,10 +990,31 @@ function localize(window, dictionary) {
         childList: true,
         characterData: true,
         attributes: true,
-        attributeFilter: ['aria-label', 'data-selected', 'data-cascade-id']
+        attributeFilter: ['aria-label', 'data-selected', 'data-cascade-id', 'data-sidebar-row-id']
       });
       window.__AG_CTX_OBSERVER__ = contextDomObserver;
     }
+    if (window.__AG_CTX_BOOT_TIMER__) {
+      window.clearInterval(window.__AG_CTX_BOOT_TIMER__);
+      window.__AG_CTX_BOOT_TIMER__ = null;
+    }
+    if (!getCsrfToken()) {
+      let bootAttempts = 0;
+      window.__AG_CTX_BOOT_TIMER__ = window.setInterval(() => {
+        bootAttempts += 1;
+        const token = getCsrfToken();
+        if (token || bootAttempts >= 20) {
+          if (window.__AG_CTX_BOOT_TIMER__) {
+            window.clearInterval(window.__AG_CTX_BOOT_TIMER__);
+            window.__AG_CTX_BOOT_TIMER__ = null;
+          }
+          if (token) renderAll();
+        }
+      }, 250);
+    }
+    window.addEventListener('storage', e => {
+      if (!e || !e.key || e.key === 'agy_session_csrf_token') renderAll();
+    });
     if (window.__AG_CTX_TIMER__) window.clearInterval(window.__AG_CTX_TIMER__);
     window.__AG_CTX_TIMER__ = window.setInterval(() => {
       const activeCid = getActiveCascadeId();
@@ -972,12 +1050,7 @@ function localize(window, dictionary) {
     const checkedCids = new Set();
     const inflightCids = new Set();
 
-    const getCsrfToken = () => {
-      if (window.__APP_CONFIG__ && window.__APP_CONFIG__.csrfToken) return window.__APP_CONFIG__.csrfToken;
-      const scripts = document.scripts ? Array.from(document.scripts).map(s => s.textContent || '').join('\n') : (document.documentElement ? document.documentElement.innerHTML : '');
-      const match = scripts.match(/csrfToken\W+([0-9a-f-]{36})/i);
-      return match ? match[1] : null;
-    };
+    const getCsrfToken = () => readCsrfToken(window, document);
 
     const PROPER_NOUNS = [
       ['Kingdom Come Deliverance 2', '天国拯救2'],
@@ -1168,7 +1241,26 @@ function localize(window, dictionary) {
     };
 
     scanSidebar();
-    window.setInterval(scanSidebar, 4000);
+    if (window.__AG_TITLE_BOOT_TIMER__) {
+      window.clearInterval(window.__AG_TITLE_BOOT_TIMER__);
+      window.__AG_TITLE_BOOT_TIMER__ = null;
+    }
+    if (!getCsrfToken()) {
+      let titleBootAttempts = 0;
+      window.__AG_TITLE_BOOT_TIMER__ = window.setInterval(() => {
+        titleBootAttempts += 1;
+        const token = getCsrfToken();
+        if (token || titleBootAttempts >= 20) {
+          if (window.__AG_TITLE_BOOT_TIMER__) {
+            window.clearInterval(window.__AG_TITLE_BOOT_TIMER__);
+            window.__AG_TITLE_BOOT_TIMER__ = null;
+          }
+          if (token) scanSidebar();
+        }
+      }, 300);
+    }
+    if (window.__AG_TITLE_TIMER__) window.clearInterval(window.__AG_TITLE_TIMER__);
+    window.__AG_TITLE_TIMER__ = window.setInterval(scanSidebar, 4000);
   }
 }
 

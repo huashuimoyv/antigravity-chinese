@@ -2,6 +2,14 @@
 
 本文件记录 Antigravity Windows 本地中文汉化与增强套件各版本的核心变更；标签触发 GitHub Actions 发布流水线时会自动提取对应版本段落写入 Release 说明。
 
+## v1.0.16
+
+- **客户端认证扩展**：正式认证适配 Antigravity `2.34.0`（同步登记 `dist/preload.js` 与 `dist/menu.js` 最新 SHA-256 哈希白名单）。
+- **2.34.0 新界面与句首大小写设置全覆盖**：新增 `84` 条词条（本版累计新增 `109` 条，精确词库扩充至 `1450` 条）及 `Select Sidebar Item N` 动态规则，涵盖 **Orchestrator 编排器模型配置**、**Thinking effort 思考深度说明**、**自定义侧边栏与筛选排序**（`Customize Sidebar` / `Filter and Sort`）、**内联权限审批与沙盒外警告卡片**，以及 2.34.0 句首小写版设置项（`Queued messages`、`Enter to send`、`Send message`、`Enable terminal sandbox`、`Tool permissions`、`Security preset` 等）。
+- **模型菜单与新模型全量覆盖**：补全 `Model` / `Best of N Models` 菜单头部、`New` / `Notice` / `Unavailable` 徽章标签、`Orchestrator (Neon)` 与 `Gemini 4 Neon`、`GPT-OSS 120B / 20B`、Neon 分流提示（`that may offload routine steps to ...`）、`View Usage` 弹窗和配额重置复合文案，并加固 `Gemini 4 Neon` 额度池分组判断。
+- **输入框与权限切换补齐**：新增聊天框引导占位文案（`Ask anything, @ to mention, / for actions` 等，严格避开可编辑正文区）与右下角权限预设按钮 `Turbo`（极速）译名，并补充完整回归测试。
+- **2.34.0 顶栏上下文/额度与侧边栏标题唤醒修复**：适配 `2.34.0` 全新异步会话认证流，补全从共享 `localStorage`（`agy_session_csrf_token`）与 `csrfToken` Cookie 读取会话凭据的多级回退，支持 `data-sidebar-row-id` 活动会话识别与冷启动异步认证轮询重试，解决顶栏长期停留在 `上下文加载中…` 及侧边栏英文标题守护失灵问题。
+
 ## v1.0.15
 
 - **客户端认证扩展**：解析并正式认证适配 Antigravity `2.33.0`（更新 `dist/preload.js` SHA-256 哈希白名单并校验 `dist/menu.js` 一致性）。

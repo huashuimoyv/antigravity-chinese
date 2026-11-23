@@ -18,10 +18,43 @@ function startContextMonitor(window, document) {
   window.__AG_CTX_MONITOR__ = true;
 
   const getCsrfToken = () => {
-    if (window.__APP_CONFIG__ && window.__APP_CONFIG__.csrfToken) return window.__APP_CONFIG__.csrfToken;
-    const scripts = document.scripts ? Array.from(document.scripts).map(s => s.textContent || '').join('\n') : (document.documentElement ? document.documentElement.innerHTML : '');
-    const match = scripts.match(/csrfToken\W+([0-9a-f-]{36})/i);
-    return match ? match[1] : null;
+    try {
+      const cfgToken = window.__APP_CONFIG__ && typeof window.__APP_CONFIG__.csrfToken === 'string'
+        ? window.__APP_CONFIG__.csrfToken.trim()
+        : '';
+      if (cfgToken) return cfgToken;
+    } catch {}
+    try {
+      const stored = window.localStorage ? window.localStorage.getItem('agy_session_csrf_token') : null;
+      if (typeof stored === 'string' && stored.trim()) return stored.trim();
+    } catch {}
+    try {
+      const rawCookie = document && typeof document.cookie === 'string' ? document.cookie : '';
+      if (rawCookie) {
+        for (const entry of rawCookie.split(';')) {
+          const part = entry.trim();
+          if (!part.startsWith('csrfToken=')) continue;
+          const rawVal = part.slice('csrfToken='.length).trim();
+          if (!rawVal) continue;
+          try {
+            const decoded = decodeURIComponent(rawVal).trim();
+            if (decoded) return decoded;
+          } catch {
+            return rawVal;
+          }
+        }
+      }
+    } catch {}
+    try {
+      const scripts = document && document.scripts
+        ? Array.from(document.scripts).map(s => s.textContent || '').join('\n')
+        : (document && document.documentElement ? document.documentElement.innerHTML : '');
+      const kvMatch = scripts.match(/["']?csrfToken["']?\s*:\s*["']([^"'\s]+)["']/i);
+      if (kvMatch && kvMatch[1]) return kvMatch[1];
+      const uuidMatch = scripts.match(/csrfToken\W+([0-9a-f-]{36})/i);
+      if (uuidMatch && uuidMatch[1]) return uuidMatch[1];
+    } catch {}
+    return null;
   };
 
   const cache = new Map();
@@ -50,7 +83,14 @@ function startContextMonitor(window, document) {
       }
     } catch {}
     const selectedRow = document.querySelector('[data-testid="conversation-row-sidebar"][data-selected="true"]');
-    return selectedRow ? selectedRow.getAttribute('data-cascade-id') : null;
+    if (selectedRow) {
+      const directId = selectedRow.getAttribute('data-cascade-id');
+      if (directId) return directId;
+      const parentId = selectedRow.closest('[data-sidebar-row-id]')?.getAttribute('data-sidebar-row-id');
+      if (parentId) return parentId;
+    }
+    const fallbackRow = document.querySelector('[data-sidebar-row-id][data-selected="true"]');
+    return fallbackRow ? fallbackRow.getAttribute('data-sidebar-row-id') : null;
   };
 
   const openTrajectoryDebugger = e => {
@@ -531,6 +571,27 @@ function startContextMonitor(window, document) {
   };
 
   renderAll();
+  if (window.__AG_CTX_BOOT_TIMER__) {
+    window.clearInterval(window.__AG_CTX_BOOT_TIMER__);
+    window.__AG_CTX_BOOT_TIMER__ = null;
+  }
+  if (!getCsrfToken()) {
+    let bootAttempts = 0;
+    window.__AG_CTX_BOOT_TIMER__ = window.setInterval(() => {
+      bootAttempts += 1;
+      const token = getCsrfToken();
+      if (token || bootAttempts >= 20) {
+        if (window.__AG_CTX_BOOT_TIMER__) {
+          window.clearInterval(window.__AG_CTX_BOOT_TIMER__);
+          window.__AG_CTX_BOOT_TIMER__ = null;
+        }
+        if (token) renderAll();
+      }
+    }, 250);
+  }
+  window.addEventListener('storage', e => {
+    if (!e || !e.key || e.key === 'agy_session_csrf_token') renderAll();
+  });
   if (window.__AG_CTX_TIMER__) window.clearInterval(window.__AG_CTX_TIMER__);
   window.__AG_CTX_TIMER__ = window.setInterval(() => {
     const activeCid = getActiveCascadeId();

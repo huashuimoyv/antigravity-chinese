@@ -532,7 +532,197 @@ test('routes Gemini 4 Carbon and Claude Opus 5.5 Max to their proper quota pools
     { message: 'popover should resolve M670 to gemini-4-carbon' }
   );
   assert.match(pop.textContent, /64%/);
+
+  trigger.textContent = '编排协调员 (Neon)';
+  await waitFor(
+    () => /5h额度 91%/.test(bar.textContent),
+    { message: 'Orchestrator (Neon) should use Gemini Models 5h quota pool' }
+  );
+
+  trigger.textContent = '编排协调员 (Argon)';
+  await waitFor(
+    () => /G4周额 15%/.test(bar.textContent),
+    { message: 'Orchestrator (Argon) should use Argon weekly quota pool' }
+  );
 });
+
+test('reads 2.34.0 session CSRF token asynchronously from localStorage for context monitor and sidebar title localizer', async t => {
+  const html = `
+    <html>
+      <head></head>
+      <body>
+        <div data-testid="conversation-row-sidebar" data-selected="true" data-sidebar-row-id="cid-2340">
+          <span>Repository Overview</span>
+          <time>now</time>
+        </div>
+        <button data-testid="model-selector-trigger">编排协调员 Gemini 4 Neon Extra High</button>
+        <header>
+          <div>
+            <button data-testid="titlebar-more-actions">More</button>
+          </div>
+        </header>
+      </body>
+    </html>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:12345/' });
+  t.after(() => dom.window.close());
+
+  const seenTokens = [];
+  let updatedTitle = '';
+  let updatedCid = '';
+  dom.window.fetch = async (url, options = {}) => {
+    const hdrs = options.headers || {};
+    const tok = typeof hdrs.get === 'function' ? hdrs.get('x-codeium-csrf-token') : hdrs['x-codeium-csrf-token'];
+    seenTokens.push({ url, tok });
+    if (url.includes('RetrieveUserQuotaSummary')) {
+      return {
+        ok: true,
+        json: async () => ({
+          response: {
+            groups: [
+              {
+                displayName: 'Gemini Models',
+                buckets: [
+                  { bucketId: 'gemini-weekly', displayName: 'Weekly Limit Remaining', window: 'weekly', remainingFraction: 0.60, resetTime: new Date(Date.now() + 86400000).toISOString() },
+                  { bucketId: 'gemini-5h', displayName: 'Five Hour Limit Remaining', window: '5h', remainingFraction: 0.88, resetTime: new Date(Date.now() + 7200000).toISOString() }
+                ]
+              },
+              {
+                displayName: 'Gemini 4 Argon',
+                buckets: [
+                  { bucketId: 'gemini-argon-wtu-weekly', displayName: 'Gemini 4 Argon Weekly Limit', window: 'weekly', remainingFraction: 0.20, resetTime: new Date(Date.now() + 172800000).toISOString() }
+                ]
+              }
+            ]
+          }
+        })
+      };
+    }
+    if (url.includes('GetCascadeTrajectoryGeneratorMetadata')) {
+      return {
+        ok: true,
+        json: async () => ({
+          generatorMetadata: [{
+            chatModel: {
+              usage: { model: 'MODEL_PLACEHOLDER_M528', inputTokens: 2000, cacheReadTokens: 8000, outputTokens: 150 },
+              chatStartMetadata: {
+                contextWindowMetadata: { maxContextTokens: 256000, estimatedTokensUsed: 10000 }
+              }
+            }
+          }]
+        })
+      };
+    }
+    if (url.includes('GetCascadeTrajectorySteps')) {
+      return { ok: true, json: async () => ({ steps: [] }) };
+    }
+    if (url.includes('UpdateConversationAnnotations')) {
+      const payload = JSON.parse(options.body || '{}');
+      updatedCid = payload.cascadeId || '';
+      updatedTitle = payload?.annotations?.title || '';
+      return { ok: true, json: async () => ({}) };
+    }
+    return { ok: true, json: async () => ({}) };
+  };
+
+  runtime(dom.window, dictionary);
+
+  const bar = await waitFor(
+    () => dom.window.document.getElementById('ag-titlebar-context-bar'),
+    { message: 'titlebar widget should mount even before CSRF token arrives' }
+  );
+  assert.match(bar.textContent, /上下文加载中…/);
+  assert.equal(seenTokens.length, 0, 'no RPC requests should fire while CSRF token is unavailable');
+
+  setTimeout(() => {
+    dom.window.localStorage.setItem('agy_session_csrf_token', 'agy_sess_2340_opaque_token_xyz');
+  }, 100);
+
+  await waitFor(
+    () => /10\.0k \/ 256k/.test(bar.textContent) && /5h额度 88%/.test(bar.textContent) && updatedTitle.length > 0,
+    { timeout: 2000, message: 'bootstrap timer should detect async localStorage token and load context, quota, and sidebar title' }
+  );
+  assert.match(bar.textContent, /缓存 80%/);
+  assert.doesNotMatch(bar.textContent, /G4周额/);
+  assert.equal(updatedCid, 'cid-2340');
+  assert.equal(updatedTitle, '仓库概览');
+  assert.ok(seenTokens.length >= 4, 'all 4 RPC endpoints should have been invoked');
+  for (const item of seenTokens) {
+    assert.equal(item.tok, 'agy_sess_2340_opaque_token_xyz');
+  }
+});
+
+test('falls back to csrfToken cookie when __APP_CONFIG__ and localStorage are unavailable', async t => {
+  const html = `
+    <html>
+      <head></head>
+      <body>
+        <div data-testid="conversation-row-sidebar" data-selected="true" data-cascade-id="cid-cookie-2340"></div>
+        <button data-testid="model-selector-trigger">Gemini 4 Hydrogen Extra</button>
+        <header>
+          <div>
+            <button data-testid="titlebar-more-actions">More</button>
+          </div>
+        </header>
+      </body>
+    </html>
+  `;
+  const dom = new JSDOM(html, { url: 'https://127.0.0.1:12345/' });
+  t.after(() => dom.window.close());
+  dom.window.document.cookie = 'theme=dark';
+  dom.window.document.cookie = 'csrfToken=cookie_session_2340_tok';
+
+  const seenTokens = [];
+  dom.window.fetch = async (url, options = {}) => {
+    const hdrs = options.headers || {};
+    const tok = typeof hdrs.get === 'function' ? hdrs.get('x-codeium-csrf-token') : hdrs['x-codeium-csrf-token'];
+    seenTokens.push({ url, tok });
+    if (url.includes('RetrieveUserQuotaSummary')) {
+      return {
+        ok: true,
+        json: async () => ({
+          response: {
+            groups: [
+              {
+                displayName: 'Gemini Models',
+                buckets: [
+                  { bucketId: 'gemini-5h', displayName: 'Five Hour Limit Remaining', window: '5h', remainingFraction: 0.77, resetTime: new Date(Date.now() + 7200000).toISOString() }
+                ]
+              }
+            ]
+          }
+        })
+      };
+    }
+    return {
+      ok: true,
+      json: async () => ({
+        generatorMetadata: [{
+          chatModel: {
+            usage: { model: 'MODEL_PLACEHOLDER_M528', inputTokens: 1200, cacheReadTokens: 4800, outputTokens: 80 },
+            chatStartMetadata: {
+              contextWindowMetadata: { maxContextTokens: 256000, estimatedTokensUsed: 6000 }
+            }
+          }
+        }]
+      })
+    };
+  };
+
+  runtime(dom.window, dictionary);
+
+  const bar = await waitFor(
+    () => {
+      const el = dom.window.document.getElementById('ag-titlebar-context-bar');
+      return el && /6\.0k \/ 256k/.test(el.textContent) && /5h额度 77%/.test(el.textContent) ? el : null;
+    },
+    { message: 'cookie fallback CSRF token should load context and quota' }
+  );
+  assert.match(bar.textContent, /缓存 80%/);
+  assert.ok(seenTokens.some(x => x.url.includes('GetCascadeTrajectoryGeneratorMetadata') && x.tok === 'cookie_session_2340_tok'));
+  assert.ok(seenTokens.some(x => x.url.includes('RetrieveUserQuotaSummary') && x.tok === 'cookie_session_2340_tok'));
+});
+
 
 
 
